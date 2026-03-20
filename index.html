@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архитектура Денег — 14 дней · Архитектура Сознания</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family:'Raleway',sans-serif; background:#FAFAF8; color:#1A1A1A; font-size:17px; line-height:1.82; }
+
+.wrap    { max-width:580px; margin:0 auto; padding:0 28px; }
+.wrap-lg { max-width:820px; margin:0 auto; padding:0 28px; }
+
+/* NAV */
+.nav {  background:rgba(10,8,6,.92); backdrop-filter:blur(12px); border-bottom:1px solid rgba(200,160,100,.15); padding:16px 32px; display:flex; align-items:center; justify-content:space-between; }
+.logo { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:500; color:#F0E4D0; text-decoration:none; letter-spacing:.05em; }
+.logo em { font-style:normal; color:#C8905A; }
+.nav-btn { padding:9px 22px; background:#C8905A; color:#0A0806; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; text-decoration:none; transition:background .2s; }
+.nav-btn:hover { background:#E0A870; }
+
+/* HERO — DARK */
+.hero { background:#0A0806; padding:110px 28px 90px; text-align:center; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 30%, rgba(180,100,50,.12), transparent 70%); pointer-events:none; }
+.hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.32em; text-transform:uppercase; color:#C8905A; display:inline-block; margin-bottom:28px; position:relative; }
+.hero-eyebrow::before, .hero-eyebrow::after { content:'—'; margin:0 10px; opacity:.5; }
+.hero-h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(2.8rem,7.5vw,6rem); font-weight:400; line-height:1.02; letter-spacing:-.02em; color:#F0E4D0; margin-bottom:22px; position:relative; }
+.hero-h1 em { font-style:italic; color:#C8905A; }
+.hero-sub { font-family:'Cormorant Garamond',serif; font-size:clamp(1.15rem,2.5vw,1.6rem); font-style:italic; font-weight:300; color:rgba(240,228,208,.62); max-width:580px; margin:0 auto 28px; line-height:1.65; position:relative; }
+.hero-meta { display:flex; flex-wrap:wrap; gap:8px 20px; justify-content:center; margin-bottom:44px; position:relative; }
+.hero-meta span { display:flex; align-items:center; gap:7px; font-size:13px; color:rgba(240,228,208,.5); }
+.hero-meta span::before { content:''; width:4px; height:4px; border-radius:50%; background:#C8905A; display:inline-block; }
+.hero-cta { position:relative; }
+
+/* SECTIONS */
+.sec     { padding:72px 0; border-bottom:1px solid #EDEAE4; }
+.sec-alt { padding:72px 0; background:#F4F0EB; border-bottom:1px solid #E8E2D9; }
+.sec-dark { padding:72px 28px; background:#0A0806; }
+
+/* TYPE */
+.lbl { font-size:10.5px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:#8B5A3C; display:block; margin-bottom:14px; }
+.lbl-c { text-align:center; }
+h2 { font-family:'Cormorant Garamond',serif; font-size:clamp(2rem,4.5vw,3.2rem); font-weight:400; color:#1A1A1A; line-height:1.12; margin-bottom:20px; }
+h2 em { font-style:italic; color:#8B5A3C; }
+h2.c { text-align:center; }
+h3 { font-family:'Cormorant Garamond',serif; font-size:clamp(1.4rem,3vw,2rem); font-weight:500; color:#1A1A1A; line-height:1.18; margin-bottom:14px; }
+p { color:#3D3A36; margin-bottom:18px; line-height:1.82; }
+p:last-child { margin-bottom:0; }
+p strong { color:#1A1A1A; font-weight:600; }
+hr { border:none; height:1px; background:#E8E2D9; }
+
+/* DARK TYPE */
+.dk-lbl { font-size:10.5px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:#C8A882; display:block; margin-bottom:14px; }
+.dk-h { font-family:'Cormorant Garamond',serif; font-size:clamp(2rem,4.5vw,3.2rem); font-weight:400; color:#F0E4D0; line-height:1.12; margin-bottom:18px; }
+.dk-h em { font-style:italic; color:#C8A882; }
+.dk-p { color:rgba(240,228,208,.65); margin-bottom:16px; }
+
+/* CALLOUT */
+.callout { border-left:3px solid #8B5A3C; background:#F9F4EF; padding:18px 22px; margin:22px 0; font-family:'Cormorant Garamond',serif; font-size:1.15rem; font-style:italic; color:#1A1A1A; line-height:1.55; }
+.note { background:#F4F0EB; border:1px solid #E8E2D9; padding:16px 20px; margin:18px 0; }
+.note p { font-size:.93rem; color:#3D3A36; margin:0; }
+
+/* PAIN */
+.pain-list { display:flex; flex-direction:column; margin-top:28px; }
+.pain-i { display:flex; gap:14px; align-items:flex-start; padding:16px 0; border-bottom:1px solid #E8E2D9; }
+.pain-i:last-child { border-bottom:none; }
+.pain-chk { flex-shrink:0; width:22px; height:22px; border-radius:50%; border:1.5px solid #C8A882; background:#FDF7F2; display:flex; align-items:center; justify-content:center; font-size:11px; color:#8B5A3C; margin-top:3px; }
+.pain-text { font-size:.97rem; color:#3D3A36; line-height:1.72; }
+
+/* BAF */
+.baf-heads { display:grid; grid-template-columns:1fr 1fr; gap:2px; }
+.baf-h { padding:13px 18px; text-align:center; font-size:11px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; }
+.baf-h.b { background:#F0EDE8; color:#7A756E; }
+.baf-h.a { background:#8B5A3C; color:#fff; }
+.baf-row { display:grid; grid-template-columns:1fr 1fr; gap:2px; margin-top:2px; }
+.baf-c { padding:14px 18px; font-size:.9rem; }
+.baf-c.b { background:#FAF8F6; color:#9A9590; }
+.baf-c.b::before { content:'✗  '; color:#C0504D; }
+.baf-c.a { background:#FDF8F4; color:#3D3A36; }
+.baf-c.a::before { content:'✓  '; color:#8B5A3C; font-weight:600; }
+
+/* STAGES */
+.stages { display:flex; flex-direction:column; gap:2px; max-width:660px; margin:36px auto 0; }
+.stage { display:flex; overflow:hidden; }
+.stage-n { flex-shrink:0; width:60px; background:#F4F0EB; border:1px solid #D4C8BC; border-right:none; display:flex; align-items:center; justify-content:center; font-family:'Cormorant Garamond',serif; font-size:2rem; font-weight:600; color:#8B5A3C; }
+.stage-b { padding:20px 24px; flex:1; background:#FAFAF8; border:1px solid #E8E2D9; }
+.stage-lbl { font-size:10px; font-weight:700; letter-spacing:.22em; text-transform:uppercase; color:#8B5A3C; display:block; margin-bottom:4px; }
+.stage-title { font-family:'Cormorant Garamond',serif; font-size:1.2rem; font-weight:500; color:#1A1A1A; margin-bottom:6px; }
+.stage-desc { font-size:.88rem; color:#5A5650; margin:0; line-height:1.65; }
+
+/* FORMAT */
+.format-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-top:36px; }
+.fcard { padding:28px 22px; background:#fff; border:1px solid #E8E2D9; border-top:2px solid #8B5A3C; }
+.fcard-icon { display:block; margin-bottom:14px; }
+.fcard-name { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:500; color:#1A1A1A; margin-bottom:8px; display:block; }
+.fcard p { font-size:.87rem; color:#5A5650; margin:0; line-height:1.6; }
+
+/* QUOTE */
+.quote { border:1px solid #D4C8BC; background:#F9F4EF; padding:44px 36px; text-align:center; }
+.q-text { font-family:'Cormorant Garamond',serif; font-size:clamp(1.25rem,2.8vw,1.8rem); font-style:italic; color:#1A1A1A; line-height:1.5; margin-bottom:14px; }
+.q-attr { font-size:10.5px; letter-spacing:.22em; text-transform:uppercase; color:#8B5A3C; }
+
+/* TARIFFS */
+.tariff-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(270px,1fr)); gap:20px; max-width:700px; margin:40px auto 0; }
+.tc { border:1px solid #D4C8BC; background:#fff; padding:36px 28px; position:relative; }
+.tc.hot { border:2px solid #8B5A3C; background:#FAFAF8; }
+.tc-badge { position:absolute; top:-13px; left:50%; transform:translateX(-50%); background:#8B5A3C; color:#fff; font-size:10px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; padding:5px 18px; white-space:nowrap; }
+.tc-name { font-size:11px; font-weight:700; letter-spacing:.25em; text-transform:uppercase; color:#8B5A3C; display:block; margin-bottom:12px; }
+.tc-price { font-family:'Cormorant Garamond',serif; font-size:3.2rem; font-weight:400; color:#1A1A1A; line-height:1; margin-bottom:6px; }
+.tc-sub { font-size:.82rem; color:#7A756E; font-style:italic; margin-bottom:24px; }
+.tc-feat { list-style:none; display:flex; flex-direction:column; margin-bottom:26px; }
+.tc-feat li { font-size:.9rem; color:#3D3A36; display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-bottom:1px solid #EDEAE4; }
+.tc-feat li:last-child { border-bottom:none; }
+.tc-feat li::before { content:'✓'; color:#8B5A3C; font-weight:700; flex-shrink:0; margin-top:1px; }
+.tc-feat li.no::before { content:'—'; color:#C8C3BC; }
+.tc-feat li.no { color:#9A9590; }
+.tc-note { font-size:.78rem; color:#9A9590; text-align:center; margin-top:16px; }
+
+/* BTNS */
+.btn { display:inline-block; padding:16px 48px; background:#8B5A3C; color:#fff; font-family:'Raleway',sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; transition:background .25s; }
+.btn:hover { background:#723E24; }
+.btn-dark { display:inline-block; padding:16px 48px; background:#C8905A; color:#0A0806; font-family:'Raleway',sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; transition:background .25s; }
+.btn-dark:hover { background:#E0A870; }
+.btn-ghost-dark { display:inline-block; padding:16px 48px; background:transparent; color:rgba(240,228,208,.7); font-family:'Raleway',sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; border:1.5px solid rgba(200,160,100,.35); transition:all .25s; }
+.btn-ghost-dark:hover { border-color:#C8905A; color:#C8905A; }
+.btn-outline { display:inline-block; padding:16px 48px; background:transparent; color:#8B5A3C; font-family:'Raleway',sans-serif; font-size:11.5px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; border:1.5px solid #8B5A3C; transition:all .25s; }
+.btn-outline:hover { background:#8B5A3C; color:#fff; }
+.btn-full { display:block; width:100%; text-align:center; padding:15px; background:#8B5A3C; color:#fff; font-family:'Raleway',sans-serif; font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; transition:background .2s; }
+.btn-full:hover { background:#723E24; }
+.btn-full-o { display:block; width:100%; text-align:center; padding:15px; background:transparent; color:#8B5A3C; font-family:'Raleway',sans-serif; font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; text-decoration:none; border:1.5px solid #C4A88A; transition:all .2s; }
+.btn-full-o:hover { border-color:#8B5A3C; }
+.btn-row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+
+/* FAQ */
+.faq-list { display:flex; flex-direction:column; gap:2px; max-width:700px; margin:32px auto 0; }
+.faq-item { background:#fff; border:1px solid #E8E2D9; overflow:hidden; }
+.faq-q { padding:19px 22px; font-family:'Cormorant Garamond',serif; font-size:1.1rem; color:#1A1A1A; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:14px; user-select:none; transition:background .2s; }
+.faq-q:hover { background:#FAF7F4; }
+.faq-plus { flex-shrink:0; color:#8B5A3C; font-size:1.5rem; font-weight:300; line-height:1; transition:transform .3s; }
+.faq-item.open .faq-plus { transform:rotate(45deg); }
+.faq-a { max-height:0; overflow:hidden; transition:max-height .4s ease; }
+.faq-item.open .faq-a { max-height:500px; }
+.faq-a-in { padding:0 22px 20px; }
+.faq-a-in p { font-size:.92rem; color:#5A5650; margin:0; line-height:1.75; }
+
+/* FOOTER */
+footer { background:#F4F0EB; border-top:2px solid #D4C8BC; padding:56px 28px 32px; }
+.footer-grid { max-width:860px; margin:0 auto 36px; display:grid; grid-template-columns:1fr auto; gap:32px 60px; }
+.f-logo { font-family:'Cormorant Garamond',serif; font-size:1.2rem; font-weight:500; color:#1A1A1A; text-decoration:none; display:block; margin-bottom:8px; }
+.f-logo em { font-style:normal; color:#8B5A3C; }
+.f-desc { font-size:.82rem; color:#7A756E; line-height:1.6; margin:0; }
+.f-title { font-size:10px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:#8B5A3C; display:block; margin-bottom:14px; }
+.f-links { display:flex; flex-direction:column; }
+.f-links a { font-size:1.05rem; font-weight:500; color:#1A1A1A; text-decoration:none; padding:9px 0; border-bottom:1px solid #E0DBD4; letter-spacing:.02em; transition:color .2s; }
+.f-links a:last-child { border-bottom:none; }
+.f-links a:hover { color:#8B5A3C; }
+.f-bottom { max-width:860px; margin:0 auto; padding-top:20px; border-top:1px solid #E0DBD4; display:flex; flex-wrap:wrap; gap:6px 20px; justify-content:space-between; }
+.f-bottom p { font-size:.75rem; color:#9A9590; margin:0; }
+
+@media(max-width:600px) {
+  .nav { padding:14px 20px; }
+  .hero { padding:80px 20px 70px; }
+  .baf-heads, .baf-row { grid-template-columns:1fr; }
+  .footer-grid { grid-template-columns:1fr; }
+  .quote { padding:32px 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav">
+  <a href="#" class="logo">Архитектура <em>Сознания</em></a>
+  <a href="#tariffs" class="nav-btn">Получить программу</a>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="hero-eyebrow">Программа · 14 дней</span>
+  <h1 class="hero-h1">Забудьте всё,<br>что вы знали<br>о <em>деньгах</em></h1>
+  <p class="hero-sub">Если вы дошли до этой страницы — значит, проблема ещё не решена.<br>И дело точно не в том, что вы мало старались.</p>
+  <div class="hero-meta">
+    <span>14 дней</span>
+    <span>14 нейропрограмм</span>
+    <span>Рабочие листы</span>
+    <span>Telegram-канал</span>
+  </div>
+  <div class="hero-cta">
+    <a href="#tariffs" class="btn-dark">Начать программу</a>
+  </div>
+</section>
+
+<!-- PAIN -->
+<section class="sec-alt">
+  <div class="wrap">
+    <span class="lbl">— если вы здесь —</span>
+    <h2>Вы могли месяцами находиться<br>в терапии, читать книги,<br>проходить марафоны...</h2>
+    <p>В результате вы сейчас очень проработанный человек: простили маму и папу, отработали прадедушку, постояли на гвоздях и разрешили себе проявляться. <strong>Но денег больше не стало.</strong></p>
+    <p>Из-за этого действительно могут опуститься руки. Потому что делаешь много, а результата нет. И даже когда деньги наконец приходят — разлетаются очень быстро, и вы снова проваливаетесь в беспокойство. Появляются мысли, что с вами что-то не так. Что вы недостаточно хороши, чтобы вам платили. А это ещё сильнее бьёт по состоянию.</p>
+    <p>Поэтому — забудьте всё, что вы знали о деньгах.</p>
+    <div class="pain-list">
+      <div class="pain-i"><div class="pain-chk">✓</div><p class="pain-text">Деньги то приходят, то уходят — финансовые качели не останавливаются, сколько бы вы ни работали над собой</p></div>
+      <div class="pain-i"><div class="pain-chk">✓</div><p class="pain-text">Вы умный, трудолюбивый, честный человек — но рядом зарабатывают те, кто «не занимается всем этим», и это кажется несправедливым</p></div>
+      <div class="pain-i"><div class="pain-chk">✓</div><p class="pain-text">Когда деньги нужны срочно — находите. Когда «всё нормально» — расслабляетесь и через какое-то время снова проваливаетесь в дыру</p></div>
+      <div class="pain-i"><div class="pain-chk">✓</div><p class="pain-text">Тревога о деньгах живёт внутри постоянно — даже когда они есть. «Хватит ли?», «А вдруг закончатся?»</p></div>
+      <div class="pain-i"><div class="pain-chk">✓</div><p class="pain-text">Накопилась масса курсов, которые вы купили, но так и не дошли до конца — и теперь страшно, что будет то же самое</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- REFRAME -->
+<section class="sec">
+  <div class="wrap">
+    <span class="lbl">— проблема не в вас —</span>
+    <h2>С вами всё в порядке.<br>И вот почему ничего не менялось.</h2>
+    <p>Проблема не в вас. С вами всё в порядке. Папа, мама, раскулаченный прадед и Нептун в шестом доме Венеры тут вообще ни при чём.</p>
+    <p>У многих обеспеченных людей были огромные проблемы с родителями, алкоголем, криминалом и даже психикой. Они не занимались медитациями, визуализацией и проработкой рода. Но это не мешало им хорошо зарабатывать.</p>
+    <p>Экологичность ваших действий и ценности, которые вы несёте в мир, тоже тут ни при чём. Если бы доступ к большим деньгам был только у тех, кто даёт пользу — алкогольный и табачный рынок был бы нищим.</p>
+    <p>Причиной денег <strong>не является работа над собой</strong>. Причиной денег являются ваши нейронные программы взаимодействия с людьми и миром. То, как вы видите себя среди людей. Что вы думаете о людях и о себе. Из какого состояния принимаете решения каждый день.</p>
+    <div class="callout">«Хорошая новость в том, что для изменения этих программ вам не понадобятся годы терапий и проработок. Нужно только 2 недели — именно столько нужно мозгу для формирования новых нейронных магистралей.»</div>
+    <p>Не нужно принимать маму и папу, часами медитировать или искать своё предназначение. Нужно последовательно внедрить определённые нейрокоды, которые изменят текущие программы мозга.</p>
+  </div>
+</section>
+
+<!-- BAF -->
+<section class="sec-alt">
+  <div class="wrap-lg">
+    <span class="lbl lbl-c">— трансформация —</span>
+    <h2 class="c">Что именно меняется <em>за 14 дней</em></h2>
+    <p style="text-align:center;color:#5A5650;max-width:560px;margin:0 auto 16px;">Уже через 2 недели в вашем мозге будут совершенно новые паттерны. Вы заметите, как мозг начал принимать другие решения — которые ведут к другим результатам.</p>
+    <div style="margin-top:36px;">
+      <div class="baf-heads"><div class="baf-h b">Сейчас</div><div class="baf-h a">Через 14 дней</div></div>
+      <div class="baf-row"><div class="baf-c b">Тревога «хватит ли денег» — даже когда они есть</div><div class="baf-c a">Внутренняя база безопасности, не зависящая от баланса счёта</div></div>
+      <div class="baf-row"><div class="baf-c b">Деньги = разрешение на жизнь и одобрение мира</div><div class="baf-c a">Деньги = инструмент реализации конкретного намерения</div></div>
+      <div class="baf-row"><div class="baf-c b">Финансовые качели — вверх-вниз год за годом</div><div class="baf-c a">Стабильный восходящий вектор без откатов</div></div>
+      <div class="baf-row"><div class="baf-c b">Фокус: «как мне понравиться, чтобы заплатили»</div><div class="baf-c a">Фокус: «что конкретно нужно этим людям»</div></div>
+      <div class="baf-row"><div class="baf-c b">«Деньги нужно заслужить» — модель борьбы</div><div class="baf-c a">Позиция сотрудничества и свободного обмена ценностью</div></div>
+      <div class="baf-row"><div class="baf-c b">Хаос — не знаю, сколько заработал за год</div><div class="baf-c a">Финансовая карта и понимание своих потоков</div></div>
+      <div class="baf-row"><div class="baf-c b">Долженствование — обиды, должны, несправедливо</div><div class="baf-c a">Свобода от долженствования — нейронные ресурсы на рост</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STAGES -->
+<section class="sec">
+  <div class="wrap-lg">
+    <span class="lbl lbl-c">— структура программы —</span>
+    <h2 class="c">4 фазы · <em>14 дней</em></h2>
+    <p style="text-align:center;color:#5A5650;max-width:560px;margin:0 auto;">Каждая фаза строится на предыдущей — как нейронные магистрали, которые прокладываются слой за слоем. Нельзя пропустить ни одной.</p>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-n">1</div>
+        <div class="stage-b">
+          <span class="stage-lbl">Дни 1–3 · Диагностика</span>
+          <p class="stage-title">Увидеть текущий нейронный код</p>
+          <p class="stage-desc">На первом этапе вы обнаружите, какие именно программы прямо сейчас управляют вашими финансовыми решениями. Нельзя изменить то, чего не видишь. Спокойная, нейтральная диагностика — без осуждения и без копания в прошлом.</p>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-n">2</div>
+        <div class="stage-b">
+          <span class="stage-lbl">Дни 4–7 · Перепрошивка</span>
+          <p class="stage-title">Установить новые нейронные паттерны</p>
+          <p class="stage-desc">На втором этапе вы начнёте воспринимать деньги адекватно реальности — тем, чем они на самом деле являются. Пропадёт модель «деньги нужно заслужить». Вы перейдёте из позиции защиты и соперничества в позицию сотрудничества. С этого момента вам откроются возможности, которые сейчас недоступны.</p>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-n">3</div>
+        <div class="stage-b">
+          <span class="stage-lbl">Дни 8–11 · Практика</span>
+          <p class="stage-title">Закрепить паттерны в реальных действиях</p>
+          <p class="stage-desc">Нейронная магистраль закрепляется только через действие в реальной жизни. На этом этапе мы переносим новый код в четыре ключевые области: транзакции и деньги, потребности и намерение, управление потоками, освобождение от долгов и долженствования.</p>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-n">4</div>
+        <div class="stage-b">
+          <span class="stage-lbl">Дни 12–14 · Интеграция</span>
+          <p class="stage-title">Запустить код. Карта следующих 90 дней.</p>
+          <p class="stage-desc">На последнем этапе вы возьмёте под полное управление своё время и внимание, поймёте, через что к вам будут приходить большие деньги — и составите конкретный план действий на следующие 90 дней. Финансовые качели остановятся, и дальше вы будете спокойно расти.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FORMAT -->
+<section class="sec-alt">
+  <div class="wrap-lg">
+    <span class="lbl lbl-c">— как проходит каждый день —</span>
+    <h2 class="c">Программу проходить <em>очень легко</em></h2>
+    <p style="text-align:center;color:#5A5650;max-width:580px;margin:0 auto;">На программе не будет сложных заданий, рабочих тетрадей на 100 страниц, долгих медитаций и сложных проработок. Я хорошо знаю, что чем сложнее программа — тем сложнее её проходить до конца. Поэтому формат максимально простой.</p>
+    <div class="format-grid">
+      <div class="fcard">
+        <span class="fcard-icon"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect x="13" y="3" width="10" height="17" rx="5" stroke="#8B5A3C" stroke-width="1.4"/><path d="M6 18c0 6.627 5.373 12 12 12s12-5.373 12-12" stroke="#8B5A3C" stroke-width="1.4" stroke-linecap="round"/><line x1="18" y1="30" x2="18" y2="34" stroke="#8B5A3C" stroke-width="1.4" stroke-linecap="round"/><line x1="12" y1="34" x2="24" y2="34" stroke="#8B5A3C" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        <span class="fcard-name">Нейропрограмма</span>
+        <p>Аудио 10–20 минут. Слушаете в наушниках — утром, в дороге или перед сном. Даже если у вас накопилась масса незаконченных курсов — 20 минут в день вы точно сможете выделить.</p>
+      </div>
+      <div class="fcard">
+        <span class="fcard-icon"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M25 4L32 11L12 31L4 33L6 25L25 4Z" stroke="#8B5A3C" stroke-width="1.4" stroke-linejoin="round"/><path d="M21 8L28 15" stroke="#8B5A3C" stroke-width="1.4"/></svg></span>
+        <span class="fcard-name">Рабочий лист</span>
+        <p>10–15 минут. Конкретное практическое задание, которое переносит нейропрограмму на уровень реального действия. Без длинных тетрадей — только то, что действительно нужно.</p>
+      </div>
+      <div class="fcard">
+        <span class="fcard-icon"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><path d="M4 6h28v18H20l-6 6v-6H4V6Z" stroke="#8B5A3C" stroke-width="1.4" stroke-linejoin="round"/><circle cx="12" cy="16" r="2" fill="#8B5A3C"/><circle cx="18" cy="16" r="2" fill="#8B5A3C"/><circle cx="24" cy="16" r="2" fill="#8B5A3C"/></svg></span>
+        <span class="fcard-name">Чек-ин в группе</span>
+        <p>2–3 минуты. Вы пишете свой главный инсайт дня в Telegram-группу. Когда вы видите результаты других участников — это дополнительно заряжает и усиливает вашу работу.</p>
+      </div>
+      <div class="fcard">
+        <span class="fcard-icon"><svg width="36" height="36" viewBox="0 0 36 36" fill="none"><circle cx="18" cy="18" r="3" fill="#8B5A3C"/><circle cx="6" cy="10" r="2" stroke="#8B5A3C" stroke-width="1.2"/><circle cx="30" cy="10" r="2" stroke="#8B5A3C" stroke-width="1.2"/><circle cx="6" cy="26" r="2" stroke="#8B5A3C" stroke-width="1.2"/><circle cx="30" cy="26" r="2" stroke="#8B5A3C" stroke-width="1.2"/><circle cx="18" cy="4" r="2" stroke="#8B5A3C" stroke-width="1.2"/><circle cx="18" cy="32" r="2" stroke="#8B5A3C" stroke-width="1.2"/><line x1="15" y1="17" x2="8" y2="11" stroke="rgba(139,90,60,.45)" stroke-width="1"/><line x1="21" y1="17" x2="28" y2="11" stroke="rgba(139,90,60,.45)" stroke-width="1"/><line x1="15" y1="19" x2="8" y2="25" stroke="rgba(139,90,60,.45)" stroke-width="1"/><line x1="21" y1="19" x2="28" y2="25" stroke="rgba(139,90,60,.45)" stroke-width="1"/><line x1="18" y1="15" x2="18" y2="6" stroke="rgba(139,90,60,.45)" stroke-width="1"/><line x1="18" y1="21" x2="18" y2="30" stroke="rgba(139,90,60,.45)" stroke-width="1"/></svg></span>
+        <span class="fcard-name">Нейроинсайт</span>
+        <p>Научный факт, объясняющий механизм дня. Понимание «почему именно это работает» существенно усиливает эффект нейропрограммы.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY IT WORKS -->
+<section class="sec">
+  <div class="wrap">
+    <span class="lbl">— почему эта система сработает —</span>
+    <h2>Вы уже много всего проходили.<br>Чем это отличается?</h2>
+    <p>За последние несколько лет через наши программы прошло более 800 человек. Среди них были предприниматели, топ-менеджеры, фрилансеры и наёмные сотрудники. Разного возраста — от 22 до 58 лет. С разными запросами и разными историями.</p>
+    <p>У них было много проблем: с родителями, с партнёрами, со здоровьем. Некоторые не занимались медитациями, визуализацией, проработкой рода и денежных блоков никогда в жизни. Но все они делали определённые действия, которые последовательно приводили их к росту в деньгах.</p>
+    <p>И всех их объединяли те принципы и нейронные паттерны, по которым построена эта программа.</p>
+    <div class="callout">«Я пока не видела человека, который прошёл эту программу до конца — и не почувствовал изменения в том, как принимает финансовые решения.»</div>
+    <p>Большинство программ о деньгах работают на уровне убеждений: «поменяй мышление, прими родителей, отработай блок». Эта программа работает на уровне нейронных паттернов — через аудио и повторяющийся новый опыт. Это принципиально другой уровень изменений. Понять «почему так» и изменить автоматическую реакцию мозга — разные задачи.</p>
+  </div>
+</section>
+
+<!-- QUOTE -->
+<section class="sec-alt">
+  <div class="wrap">
+    <div class="quote">
+      <p class="q-text">«Деньги приходят не к тем, кто правильно думает. Деньги приходят к тем, у кого правильно работает нейронная программа взаимодействия с людьми.»</p>
+      <span class="q-attr">Архитектура Сознания</span>
+    </div>
+  </div>
+</section>
+
+<!-- TARIFFS -->
+<section class="sec" id="tariffs">
+  <div class="wrap-lg">
+    <span class="lbl lbl-c">— выбирайте тариф —</span>
+    <h2 class="c">Начать <em>прямо сейчас</em></h2>
+    <p style="text-align:center;color:#5A5650;max-width:520px;margin:0 auto;">Программа начинается сразу после оплаты. Каждый день вы получаете новый урок в Telegram-канале. Доступ к урокам остаётся у вас навсегда.</p>
+    <div class="tariff-cards">
+      <div class="tc">
+        <span class="tc-name">Старт</span>
+        <p class="tc-price">2 990 ₽</p>
+        <p class="tc-sub">Самостоятельное прохождение</p>
+        <ul class="tc-feat">
+          <li>14 аудио-нейропрограмм (10–20 мин)</li>
+          <li>Рабочие листы к каждому дню</li>
+          <li>Закрытый Telegram-канал</li>
+          <li>Пожизненный доступ к материалам</li>
+          <li class="no">Групповые разборы с автором</li>
+          <li class="no">Разбор вашей ситуации лично</li>
+          <li class="no">Персональная карта 90 дней</li>
+        </ul>
+        <a href="https://t.me/TheBodyMindCode_support" class="btn-full-o">Начать за 2 990 ₽</a>
+      </div>
+      <div class="tc hot">
+        <div class="tc-badge">Рекомендуем</div>
+        <span class="tc-name">Глубина</span>
+        <p class="tc-price">9 900 ₽</p>
+        <p class="tc-sub">С групповыми разборами</p>
+        <ul class="tc-feat">
+          <li>14 аудио-нейропрограмм (10–20 мин)</li>
+          <li>Рабочие листы к каждому дню</li>
+          <li>Закрытый Telegram-канал</li>
+          <li>Пожизненный доступ к материалам</li>
+          <li>3 групповых разбора с автором (live)</li>
+          <li>Разбор вашей ситуации лично</li>
+          <li>Персональная карта 90 дней</li>
+        </ul>
+        <a href="https://t.me/TheBodyMindCode_support" class="btn-full">Начать за 9 900 ₽</a>
+      </div>
+    </div>
+    <p class="tc-note">После оплаты обязательно укажите email — ссылка на закрытый канал придёт на почту. Если не получили — проверьте папку СПАМ или напишите в поддержку.</p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="sec-alt">
+  <div class="wrap-lg">
+    <span class="lbl lbl-c">— частые вопросы —</span>
+    <h2 class="c">Всё, что вы хотели<br>спросить</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">Когда начало и как всё будет проходить?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>Программа начинается сразу после оплаты и длится 14 дней. Каждый день в закрытый Telegram-канал выходит новый урок — аудио 10–20 минут и рабочий лист с заданием. Вы самостоятельно слушаете и применяете практики в своём темпе. Доступ к урокам остаётся у вас навсегда — можно возвращаться в любой момент.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Я уже много всего проходила о деньгах. Чем это отличается?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>Большинство программ работают на уровне убеждений — понять причину, принять, отпустить. Это меняет то, что вы осознаёте, но не меняет автоматические нейронные реакции. Эта программа работает на уровне паттернов через аудио-нейропрограммирование и повторяющийся новый опыт. Именно так меняются нейронные магистрали — не через осознание, а через новый опыт.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Сколько времени нужно выделять каждый день?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>30–35 минут. 20 минут — нейропрограмма в наушниках (можно слушать во время прогулки, в дороге или перед сном). 10–15 минут — задание. Плюс 2–3 минуты на чек-ин в группе. Даже если у вас накопилась масса курсов, которые вы приобрели, но не дослушали до конца — эту программу вы пройдёте легко.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Что если я пропущу день?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>Ничего страшного — нейропластичность не обнуляется от одного пропущенного дня. Просто продолжайте со следующего урока. Доступ к материалам навсегда, можно вернуться в любой момент. Но постарайтесь не пропускать первые 7 дней — они создают фундамент для всей программы.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Это для тех, кто работает сам на себя, или для наёмных сотрудников тоже?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>Для всех. Все нейрокоды программы — про отношения с людьми, которые платят вам деньги. Работодатель, заказчик, клиент — механизм один и тот же. Нейронные паттерны, которые мы меняем, работают одинаково независимо от формата занятости.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Чем тариф «Глубина» отличается от «Старт»?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>В тарифе «Глубина» три раза за программу — на 3-й, 7-й и 14-й день — мы встречаемся на живом групповом разборе, где подробно разбираем ситуации участников. Эти разборы заменят вам годы индивидуальной работы — потому что вы видите свою ситуацию с совершенно другой стороны. Плюс персональная карта действий на 90 дней.</p></div></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Я не верю в аффирмации и «денежное мышление». Это для меня?<span class="faq-plus">+</span></div>
+        <div class="faq-a"><div class="faq-a-in"><p>Именно для вас. В программе нет аффирмаций, визуализаций и позитивного мышления. Всё основано на нейробиологии: ретикулярная формация, нейропластичность, соматические маркеры. Механизмы работают независимо от того, верите вы в них или нет — так же как работает антибиотик независимо от вашей веры в него.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="sec-dark" style="text-align:center; padding:90px 28px;">
+  <span class="dk-lbl">— последнее —</span>
+  <h2 class="dk-h" style="max-width:620px;margin:0 auto 18px;">Уже через 2 недели<br>в вашем мозге будут<br><em>совершенно новые паттерны</em></h2>
+  <p class="dk-p" style="max-width:560px;margin:0 auto 14px;">Жизнь выйдет из круга постоянной борьбы за ресурсы — и вы сможете спокойно и уверенно реализовывать свои планы и цели.</p>
+  <p class="dk-p" style="max-width:560px;margin:0 auto 36px;">Поэтому, если хотите остановить денежные качели и начать стабильно расти в реализации и деньгах — жмите на кнопку и забирайте нейрокоды.</p>
+  <div class="btn-row">
+    <a href="#tariffs" class="btn-dark">Получить нейрокоды</a>
+    <a href="#tariffs" class="btn-ghost-dark">Тариф с разборами</a>
+  </div>
+  <p style="margin-top:28px;font-size:.76rem;color:rgba(240,228,208,.25);">Архитектура Сознания · @thebodymindcode</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <a href="#" class="f-logo">Архитектура <em>Сознания</em></a>
+      <p class="f-desc">Нейробиология, сознание, трансформация.<br>Научный подход к перестройке мозга.</p>
+    </div>
+    <div>
+      <span class="f-title">Навигация</span>
+      <div class="f-links">
+        <a href="https://t.me/TheBodyMindCode_support">Поддержка</a>
+        <a href="https://www.instagram.com/thebodymindcode" target="_blank">Instagram</a>
+        <a href="https://thebodymindcode.github.io/shop/" target="_blank">Все программы</a>
+      </div>
+    </div>
+  </div>
+  <div class="f-bottom">
+    <p>© 2026 Архитектура Сознания</p>
+    <p>ИП Ростовцева Дарья Валерьевна · ИНН: 241103415641</p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.faq-q').forEach(q => {
+  q.addEventListener('click', () => {
+    const item = q.parentElement;
+    const open = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!open) item.classList.add('open');
+  });
+});
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+  });
+});
+</script>
+</body>
+</html>
