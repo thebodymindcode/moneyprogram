@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Протокол денег</title>
+  <script>
+    // Приложение одностраничное и живёт в подпапке /moneyprogram/.
+    // Любой неизвестный адрес внутри проекта возвращаем на главную приложения,
+    // чтобы прямые ссылки и обновление страницы работали на GitHub Pages.
+    (function () {
+      var parts = location.pathname.split("/").filter(Boolean);
+      var base = parts.length ? "/" + parts[0] + "/" : "/";
+      location.replace(base + location.search + location.hash);
+    })();
+  </script>
+</head>
+<body></body>
+</html>
