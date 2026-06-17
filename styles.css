@@ -309,7 +309,7 @@ button { font-family: inherit; }
 .field { margin-bottom: 13px; }
 .field label { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin: 0 0 6px 3px; }
 .input {
-  width: 100%; font-family: inherit; font-size: 15px; color: var(--ink);
+  width: 100%; font-family: inherit; font-size: 16px; color: var(--ink);
   padding: 14px 15px; border-radius: 14px; border: 1px solid var(--line);
   background: linear-gradient(180deg, #fbfcfe, #fff);
   box-shadow: inset 0 1px 2px rgba(20,30,45,.05);
@@ -442,7 +442,7 @@ button { font-family: inherit; }
 .task.checked .txt { color: var(--ink-faint); text-decoration: line-through; }
 
 .note-area {
-  width: 100%; font-family: inherit; font-size: 14.5px; color: var(--ink);
+  width: 100%; font-family: inherit; font-size: 16px; color: var(--ink);
   border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; min-height: 92px; resize: vertical; line-height: 1.5;
   background: linear-gradient(180deg,#fbfcfe,#fff); box-shadow: inset 0 1px 2px rgba(20,30,45,.05);
 }
@@ -465,7 +465,7 @@ button { font-family: inherit; }
 }
 .adm-label { font-size: 11.5px; font-weight: 700; color: var(--ink-faint); margin: 12px 0 6px; letter-spacing: .04em; text-transform: uppercase; }
 .adm-input {
-  width: 100%; font-family: inherit; font-size: 14px; color: var(--ink);
+  width: 100%; font-family: inherit; font-size: 16px; color: var(--ink);
   padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line); background: #fff;
 }
 .adm-input:focus { outline: none; border-color: var(--steel-2); box-shadow: 0 0 0 3px rgba(68,84,106,.13); }
@@ -549,7 +549,7 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 .q-num { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
 .q-edit-zone, .q-answer-view { margin-top: 12px; padding-left: 39px; }
 .q-input {
-  width: 100%; font-family: inherit; font-size: 14px; color: var(--ink); line-height: 1.5;
+  width: 100%; font-family: inherit; font-size: 16px; color: var(--ink); line-height: 1.5;
   border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; min-height: 64px; resize: vertical;
   background: linear-gradient(180deg,#fbfcfe,#fff); box-shadow: inset 0 1px 2px rgba(20,30,45,.05);
 }
