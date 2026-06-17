@@ -11,6 +11,7 @@
   --ink-faint:  #93a0ae;
   --line:       #e3e8ee;
   --line-soft:  #edf0f5;
+  --silver-3:   #c3cad4;
   --steel:      #2c3848;   /* тёмно-стальной акцент */
   --steel-2:    #44546a;
   --good:       #2f9e78;
@@ -34,6 +35,8 @@ body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   color: var(--ink);
   letter-spacing: -0.011em;
+  overflow-wrap: break-word;
+  word-break: break-word;
   -webkit-font-smoothing: antialiased;
   /* прохладный серебристый фон, источник света сверху по центру */
   background:
@@ -114,7 +117,9 @@ button { font-family: inherit; }
 .main { flex: 1; min-width: 0; }
 .content {
   width: 100%; max-width: 1120px; margin: 0 auto;
-  padding: 20px 18px 96px;
+  /* отступы под телефон: 16px по бокам, безопасные зоны сверху и снизу,
+     снизу место под плавающую панель навигации, чтобы она не перекрывала контент */
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 900px) {
   .content { padding: 40px 44px 56px; }
@@ -479,19 +484,23 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
    Нижняя навигация (телефон)
    ============================================================ */
 .bottomnav {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 60;
-  width: calc(100% - 28px); max-width: 440px; display: flex; gap: 4px; padding: 7px;
-  background: rgba(255,255,255,.82); backdrop-filter: blur(20px) saturate(1.5);
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;
+  /* учитываем безопасную зону снизу (home indicator на iPhone) */
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: calc(100% - 24px); max-width: 460px; display: flex; gap: 4px; padding: 7px;
+  background: rgba(255,255,255,.86); backdrop-filter: blur(20px) saturate(1.5);
   border: 1px solid rgba(255,255,255,.75); border-radius: 22px; box-shadow: var(--shadow-lg);
 }
 @media (min-width: 900px) { .bottomnav { display: none; } }
 .bottomnav button {
-  flex: 1; border: none; background: none; cursor: pointer; padding: 9px 4px; border-radius: 15px;
-  color: var(--ink-faint); display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex: 1; min-width: 0; min-height: 48px; border: none; background: none; cursor: pointer;
+  padding: 8px 3px; border-radius: 15px;
+  color: var(--ink-faint); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   font-size: 11px; font-weight: 700; transition: all .2s;
 }
+.bottomnav button span, .bottomnav button { white-space: nowrap; }
 .bottomnav button.active { color: var(--steel); background: var(--surface); box-shadow: var(--shadow), var(--bevel); }
-.bottomnav button svg { width: 21px; height: 21px; }
+.bottomnav button svg { width: 22px; height: 22px; flex: none; }
 
 /* ============================================================
    Задания с ответом
@@ -561,7 +570,7 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 
 /* плашка ошибки сохранения */
 .save-banner {
-  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 200;
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 200;
   max-width: 92%; width: max-content; padding: 11px 16px; border-radius: 13px;
   background: #fcecec; border: 1px solid #f0cccc; color: #b23b3b;
   font-size: 13px; font-weight: 600; line-height: 1.4;
@@ -570,3 +579,62 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 
 .spacer { height: 8px; }
 .gap16 { height: 16px; }
+
+/* ============================================================
+   ТЕЛЕФОН: тонкая настройка под маленькие экраны
+   (десктоп начинается с 900px и этим блоком не затрагивается)
+   ============================================================ */
+@media (max-width: 899px) {
+  /* никакой горизонтальной прокрутки */
+  html, body { overflow-x: hidden; max-width: 100%; }
+  .layout, .main, .content, .page { max-width: 100%; }
+
+  /* поля ввода: 16px, чтобы iOS не зумил страницу при фокусе, и на всю ширину */
+  .input, .adm-input, textarea.adm-input, .q-input, .note-area { font-size: 16px; }
+
+  /* карточки чуть компактнее, чтобы оставалось больше ширины контенту */
+  .card { padding: 17px; }
+
+  /* шапка экрана: меньше заголовок, длинные строки переносятся */
+  .head-row { gap: 10px; margin-bottom: 18px; align-items: flex-start; }
+  .head-row h1 { font-size: 22px; }
+  .head-row .sub { font-size: 13px; }
+
+  /* кольцо прогресса */
+  .ring-card { padding: 18px; gap: 16px; }
+  .ring { width: 120px; height: 120px; }
+  .ring .big { font-size: 34px; }
+
+  /* карточка «Сегодня» и заголовки блоков */
+  .today-num { width: 50px; height: 50px; font-size: 20px; border-radius: 15px; }
+  .stage-title { font-size: 17px; }
+
+  /* вход / регистрация */
+  .brand h1 { font-size: 23px; }
+  .brand .mark { width: 64px; height: 64px; font-size: 30px; }
+
+  /* экран дня */
+  .day-head h1 { font-size: 22px; }
+  .play-btn { width: 56px; height: 56px; }
+  .seek-bar { height: 10px; }
+  .seek-bar > b { width: 16px; height: 16px; }
+  /* кнопка «Готово» крупная и на всю ширину */
+  .q-confirm { width: 100%; padding: 13px 16px; font-size: 15px; }
+  .q-edit-zone, .q-answer-view { padding-left: 0; }
+
+  /* мини-маршрут: чуть шире карточки под палец */
+  .upnext .mini { width: 158px; }
+
+  /* нижняя навигация: подписи в одну строку, не переносятся */
+  .bottomnav button { font-size: 10.5px; }
+}
+
+/* очень узкие экраны (маленький iPhone ~360 до 375px) */
+@media (max-width: 380px) {
+  .card { padding: 15px; }
+  .ring { width: 110px; height: 110px; }
+  .ring .big { font-size: 31px; }
+  .head-row h1 { font-size: 21px; }
+  .stat .v { font-size: 22px; }
+  .stat { padding: 16px 6px; }
+}

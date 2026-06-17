@@ -700,7 +700,7 @@ function Admin({ days, setDays, onReload }) {
 
 /* ========================= Nav ========================= */
 const NAV = [
-  { k: "dashboard", label: "Мой прогресс", short: "Мой прогресс", icon: Ico.home },
+  { k: "dashboard", label: "Мой прогресс", short: "Прогресс", icon: Ico.home },
   { k: "map", label: "Карта дней", short: "Карта", icon: Ico.map },
   { k: "diary", label: "Дневник", short: "Дневник", icon: Ico.book },
   { k: "admin", label: "Админ", short: "Админ", icon: Ico.cog },
