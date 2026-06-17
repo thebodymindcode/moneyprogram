@@ -635,6 +635,94 @@ function Diary({ days, onOpenDay }) {
   );
 }
 
+/* ========================= Управление доступом ========================= */
+const emailValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+function AccessSection() {
+  const [list, setList] = useState(null);     // null = загрузка
+  const [admins, setAdmins] = useState([]);   // e-mail админов (их нельзя убрать)
+  const [email, setEmail] = useState("");
+  const [msg, setMsg] = useState(null);       // {type:"ok"|"err", text}
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(null);
+
+  const load = async () => {
+    const a = await sb.from("admins").select("email");
+    setAdmins(((a.data) || []).map((r) => (r.email || "").toLowerCase()));
+    const { data, error } = await sb.from("allowed_emails").select("email, note, created_at").order("created_at", { ascending: true });
+    if (error) { setList([]); setMsg({ type: "err", text: "Не удалось загрузить список: " + (error.message || "") }); return; }
+    setList(data || []);
+  };
+  useEffect(() => { load(); }, []);
+
+  const add = async () => {
+    setMsg(null);
+    const e = email.trim().toLowerCase();
+    if (!emailValid(e)) { setMsg({ type: "err", text: "Впиши корректный e-mail." }); return; }
+    if ((list || []).some((r) => (r.email || "").toLowerCase() === e)) { setMsg({ type: "err", text: "Уже в списке." }); return; }
+    setBusy(true);
+    const { error } = await sb.from("allowed_emails").insert({ email: e });
+    setBusy(false);
+    if (error) {
+      if (error.code === "23505" || /duplicate|unique/i.test(error.message || "")) setMsg({ type: "err", text: "Уже в списке." });
+      else setMsg({ type: "err", text: "Не получилось добавить: " + (error.message || "") });
+      return;
+    }
+    setEmail(""); setMsg({ type: "ok", text: "Добавлен: " + e }); load();
+  };
+
+  const remove = async (e) => {
+    setMsg(null); setBusy(true);
+    const { error } = await sb.from("allowed_emails").delete().eq("email", e);
+    setBusy(false); setConfirm(null);
+    if (error) { setMsg({ type: "err", text: "Не получилось удалить: " + (error.message || "") }); return; }
+    setMsg({ type: "ok", text: "Удалён: " + e }); load();
+  };
+
+  return (
+    <div className="card access-card">
+      <div className="eyebrow">Доступы</div>
+      <div className="block-title">Кто допущен в программу</div>
+      <div className="block-sub muted">Добавляй e-mail оплативших. Регистр не важен, адрес приводится к нижнему регистру.</div>
+
+      <div className="access-add">
+        <input className="adm-input" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off"
+          placeholder="email@example.com" value={email}
+          onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+        <button className="btn btn-primary btn-sm" onClick={add} disabled={busy}>Добавить</button>
+      </div>
+
+      {msg && <div className={"access-msg " + msg.type}>{msg.text}</div>}
+
+      <div className="access-list">
+        {list === null ? (
+          <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>Загрузка...</div>
+        ) : list.length === 0 ? (
+          <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>Пока никого нет.</div>
+        ) : list.map((r) => {
+          const e = (r.email || "").toLowerCase();
+          const isAdminEmail = admins.indexOf(e) !== -1;
+          return (
+            <div key={r.email} className="access-row">
+              <span className="access-email">{r.email}{isAdminEmail && <span className="access-tag">админ</span>}</span>
+              {isAdminEmail ? (
+                <span className="faint" style={{ fontSize: 11.5, flex: "none" }}>защищён</span>
+              ) : confirm === r.email ? (
+                <span className="access-confirm">
+                  <button className="btn btn-sm access-del" onClick={() => remove(r.email)} disabled={busy}>Удалить</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Отмена</button>
+                </span>
+              ) : (
+                <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ========================= Admin ========================= */
 function Admin({ days, setDays, onReload }) {
   const upd = (di, fn) => setDays(days.map((d, i) => (i === di ? fn({ ...d }) : d)));
@@ -648,10 +736,15 @@ function Admin({ days, setDays, onReload }) {
       <div className="head-row">
         <div>
           <div className="eyebrow">Управление</div>
-          <h1>Дни и уроки</h1>
-          <div className="sub">Меняй названия, тексты уроков, аудио и задания. Сохранение правок в базу подключим позже, пока изменения видны до перезагрузки.</div>
+          <h1>Админ</h1>
+          <div className="sub">Доступы участников и контент дней.</div>
         </div>
       </div>
+
+      <AccessSection />
+
+      <div className="eyebrow" style={{ margin: "26px 0 14px" }}>Дни и уроки</div>
+      <div className="block-sub muted" style={{ marginTop: -8, marginBottom: 14 }}>Меняй названия, тексты уроков, аудио и задания. Сохранение правок в базу подключим позже, пока изменения видны до перезагрузки.</div>
       <div className="adm-actions">
         <button className="btn btn-primary btn-sm" onClick={addDay}>+ Добавить день</button>
         <button className="btn btn-ghost btn-sm" onClick={onReload}>Обновить из базы</button>

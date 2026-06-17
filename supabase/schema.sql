@@ -70,6 +70,8 @@ create table if not exists public.allowed_emails (
   note       text,
   created_at timestamptz not null default now()
 );
+-- защита от дублей по регистру: Petya@mail.ru и petya@mail.ru это один адрес
+create unique index if not exists allowed_emails_lower_idx on public.allowed_emails (lower(email));
 
 -- Администраторы (видят админку и редактируют контент)
 create table if not exists public.admins (
