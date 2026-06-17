@@ -64,9 +64,106 @@ create table if not exists public.notes (
   primary key (user_id, day_number)
 );
 
+-- Список доступа: кто допущен в программу (оплатившие)
+create table if not exists public.allowed_emails (
+  email      text primary key,
+  note       text,
+  created_at timestamptz not null default now()
+);
+
+-- Администраторы (видят админку и редактируют контент)
+create table if not exists public.admins (
+  email text primary key
+);
+
 -- ------------------------------------------------------------
--- 2. Автосоздание профиля при регистрации
+-- 2. Вспомогательные функции
 -- ------------------------------------------------------------
+
+-- e-mail текущего пользователя из его токена, в нижнем регистре
+create or replace function public.current_email()
+returns text
+language sql
+stable
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', ''));
+$$;
+
+-- допущен ли текущий пользователь в программу (security definer, читает allowed_emails в обход RLS)
+create or replace function public.current_email_allowed()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.allowed_emails
+    where lower(email) = public.current_email()
+  );
+$$;
+
+-- админ ли текущий пользователь (по таблице admins)
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.admins
+    where lower(email) = public.current_email()
+  );
+$$;
+
+-- публичная проверка e-mail перед регистрацией, чтобы показать понятное сообщение.
+-- Список не раскрывается целиком, можно лишь проверить конкретный адрес.
+create or replace function public.is_email_allowed(p_email text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.allowed_emails
+    where lower(email) = lower(coalesce(p_email, ''))
+  );
+$$;
+grant execute on function public.is_email_allowed(text) to anon, authenticated;
+grant execute on function public.is_admin() to authenticated;
+
+-- ------------------------------------------------------------
+-- 3. Регистрация: пускаем только e-mail из allowed_emails
+-- ------------------------------------------------------------
+
+-- защита (главная): прерываем создание пользователя, если e-mail не в списке
+create or replace function public.enforce_allowed_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.allowed_emails
+    where lower(email) = lower(new.email)
+  ) then
+    raise exception 'EMAIL_NOT_ALLOWED'
+      using errcode = 'P0001',
+            hint = 'Этот e-mail не в списке участников программы.';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_check_allowed on auth.users;
+create trigger on_auth_user_check_allowed
+  before insert on auth.users
+  for each row execute function public.enforce_allowed_email();
+
+-- автосоздание профиля при регистрации (срабатывает только если проверка выше прошла)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -86,29 +183,20 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Проверка админа (security definer, чтобы не было рекурсии в RLS)
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
-$$;
+-- ------------------------------------------------------------
+-- 4. Включаем защиту строк (RLS)
+-- ------------------------------------------------------------
+alter table public.profiles       enable row level security;
+alter table public.days           enable row level security;
+alter table public.tasks          enable row level security;
+alter table public.progress       enable row level security;
+alter table public.task_answers   enable row level security;
+alter table public.notes          enable row level security;
+alter table public.allowed_emails enable row level security;
+alter table public.admins         enable row level security;
 
 -- ------------------------------------------------------------
--- 3. Включаем защиту строк (RLS)
--- ------------------------------------------------------------
-alter table public.profiles     enable row level security;
-alter table public.days         enable row level security;
-alter table public.tasks        enable row level security;
-alter table public.progress     enable row level security;
-alter table public.task_answers enable row level security;
-alter table public.notes        enable row level security;
-
--- ------------------------------------------------------------
--- 4. Политики доступа
+-- 5. Политики доступа
 -- ------------------------------------------------------------
 
 -- profiles: только своя запись
@@ -124,41 +212,70 @@ drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
   for insert to authenticated with check (auth.uid() = id);
 
--- days: читают все вошедшие, меняет только админ
+-- days: читают только допущенные в программу, меняет только админ
 drop policy if exists days_select_auth on public.days;
 create policy days_select_auth on public.days
-  for select to authenticated using (true);
+  for select to authenticated using (public.current_email_allowed());
 
 drop policy if exists days_admin_write on public.days;
 create policy days_admin_write on public.days
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
--- tasks: читают все вошедшие, меняет только админ
+-- tasks: читают только допущенные, меняет только админ
 drop policy if exists tasks_select_auth on public.tasks;
 create policy tasks_select_auth on public.tasks
-  for select to authenticated using (true);
+  for select to authenticated using (public.current_email_allowed());
 
 drop policy if exists tasks_admin_write on public.tasks;
 create policy tasks_admin_write on public.tasks
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
--- progress: только свои строки
+-- progress: только свои строки и только если допущен
 drop policy if exists progress_own on public.progress;
 create policy progress_own on public.progress
-  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all to authenticated
+  using (auth.uid() = user_id and public.current_email_allowed())
+  with check (auth.uid() = user_id and public.current_email_allowed());
 
--- task_answers: только свои строки
+-- task_answers: только свои строки и только если допущен
 drop policy if exists task_answers_own on public.task_answers;
 create policy task_answers_own on public.task_answers
-  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all to authenticated
+  using (auth.uid() = user_id and public.current_email_allowed())
+  with check (auth.uid() = user_id and public.current_email_allowed());
 
--- notes: только свои строки
+-- notes: только свои строки и только если допущен
 drop policy if exists notes_own on public.notes;
 create policy notes_own on public.notes
-  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all to authenticated
+  using (auth.uid() = user_id and public.current_email_allowed())
+  with check (auth.uid() = user_id and public.current_email_allowed());
+
+-- allowed_emails: управляет только админ (обычные пользователи список не видят)
+drop policy if exists allowed_emails_admin on public.allowed_emails;
+create policy allowed_emails_admin on public.allowed_emails
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- admins: видит и меняет только админ
+drop policy if exists admins_admin on public.admins;
+create policy admins_admin on public.admins
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- ------------------------------------------------------------
--- 5. Наполнение: 17 дней и задания (как в прототипе)
+-- 6. Доступ и админы: добавляем два наших e-mail в оба списка
+-- ------------------------------------------------------------
+insert into public.allowed_emails (email, note) values
+  ('8111706@gmail.com', 'админ'),
+  ('darya08p@mail.ru',  'админ')
+on conflict (email) do nothing;
+
+insert into public.admins (email) values
+  ('8111706@gmail.com'),
+  ('darya08p@mail.ru')
+on conflict (email) do nothing;
+
+-- ------------------------------------------------------------
+-- 7. Наполнение: 17 дней и задания (как в прототипе)
 -- ------------------------------------------------------------
 insert into public.days (day_number, title, lesson, audio_url, duration_min) values
 (1,  'Что на самом деле стоит под твоими деньгами', 'Деньги это не только цифры на счёте. За каждым денежным решением стоит твоё состояние и привычки мозга. В этом уроке смотрим, с чего начинается перенастройка и почему сила воли тут почти ни при чём.', null, 7),
@@ -223,4 +340,4 @@ insert into public.tasks (day_number, position, text) values
 on conflict (day_number, position) do update
   set text = excluded.text;
 
--- Готово. Контент и права настроены, профиль создаётся автоматически.
+-- Готово. Доступ по списку, админка по списку admins, контент и права настроены.

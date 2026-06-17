@@ -49,9 +49,12 @@ async function loadDaysFromDb() {
   }));
 }
 
+const NOT_ALLOWED_MSG = "Этот e-mail не в списке участников программы. Доступ открывается после оплаты.";
+
 // понятные сообщения об ошибках входа
 function authErrorText(e) {
   const m = ((e && e.message) || "").toLowerCase();
+  if (m.includes("email_not_allowed") || m.includes("not allowed") || m.includes("saving new user") || m.includes("database error")) return NOT_ALLOWED_MSG;
   if (m.includes("invalid login")) return "Неверная почта или пароль.";
   if (m.includes("already registered") || m.includes("already been registered")) return "Такая почта уже зарегистрирована.";
   if (m.includes("email not confirmed")) return "Почта не подтверждена. Загляни в письмо от Supabase.";
@@ -185,6 +188,11 @@ function Auth() {
     setBusy(true);
     try {
       if (reg) {
+        // проверяем список участников до регистрации, чтобы сразу показать понятное сообщение
+        try {
+          const chk = await sb.rpc("is_email_allowed", { p_email: email.trim() });
+          if (!chk.error && chk.data === false) { setErr(NOT_ALLOWED_MSG); setBusy(false); return; }
+        } catch (e) { /* если проверка недоступна, регистрацию всё равно ограничит триггер в базе */ }
         const { data, error } = await sb.auth.signUp({
           email: email.trim(), password: pass, options: { data: { name: name.trim() } },
         });
@@ -241,15 +249,13 @@ function Auth() {
           <button className="btn btn-primary" onClick={submit} disabled={busy}>
             {busy ? "Минуту…" : reg ? "Создать аккаунт" : "Войти"}
           </button>
-          <div className="divider">или</div>
-          <button className="btn btn-ghost" disabled title="Подключим позже">Продолжить через Google (скоро)</button>
           <div className="auth-switch">
             {reg
               ? <>Уже с нами? <b onClick={() => switchMode("login")}>Войти</b></>
               : <>Нет аккаунта? <b onClick={() => switchMode("register")}>Регистрация</b></>}
           </div>
         </div>
-        <p className="center faint" style={{ fontSize: 11.5, marginTop: 18 }}>Регистрация бесплатна, данные хранятся в твоём аккаунте</p>
+        <p className="center faint" style={{ fontSize: 11.5, marginTop: 18 }}>Вход только для участников программы</p>
       </div>
     </div>
   );
@@ -700,7 +706,10 @@ const NAV = [
   { k: "admin", label: "Админ", short: "Админ", icon: Ico.cog },
 ];
 
-function Sidebar({ tab, setTab, onLogout, profile }) {
+// видимые пункты меню: «Админ» только для админов
+const navItems = (isAdmin) => NAV.filter((it) => it.k !== "admin" || isAdmin);
+
+function Sidebar({ tab, setTab, onLogout, profile, isAdmin }) {
   const name = (profile && profile.name) || "Профиль";
   const email = (profile && profile.email) || "";
   const initial = (name || email || "?").trim().charAt(0).toUpperCase();
@@ -711,7 +720,7 @@ function Sidebar({ tab, setTab, onLogout, profile }) {
         <div><div className="nm">Протокол денег</div><div className="sub">17 дней</div></div>
       </div>
       <nav className="sb-nav">
-        {NAV.map((it) => (
+        {navItems(isAdmin).map((it) => (
           <button key={it.k} className={tab === it.k ? "active" : ""} onClick={() => setTab(it.k)}><it.icon /> {it.label}</button>
         ))}
       </nav>
@@ -726,10 +735,10 @@ function Sidebar({ tab, setTab, onLogout, profile }) {
   );
 }
 
-function BottomNav({ tab, setTab }) {
+function BottomNav({ tab, setTab, isAdmin }) {
   return (
     <nav className="bottomnav">
-      {NAV.map((it) => (
+      {navItems(isAdmin).map((it) => (
         <button key={it.k} className={tab === it.k ? "active" : ""} onClick={() => setTab(it.k)}><it.icon /> {it.short}</button>
       ))}
     </nav>
@@ -759,6 +768,7 @@ function App() {
   const [days, setDays] = useState(null);            // null = ещё не загружены
   const [loadErr, setLoadErr] = useState("");
   const [saveErr, setSaveErr] = useState("");        // ошибка сохранения, показываем человеку
+  const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState("dashboard");
   const [openDay, setOpenDay] = useState(null);
   const loadedUid = useRef(null);                    // для какого пользователя данные уже загружены
@@ -787,9 +797,10 @@ function App() {
       reload();
       sb.from("profiles").select("name,email").eq("id", uid).maybeSingle()
         .then(({ data }) => setProfile(data || { name: (session.user.user_metadata && session.user.user_metadata.name) || "", email: session.user.email }));
+      sb.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)).catch(() => setIsAdmin(false));
     } else {
       loadedUid.current = null;
-      setDays(null); setProfile(null); setOpenDay(null); setTab("dashboard");
+      setDays(null); setProfile(null); setOpenDay(null); setTab("dashboard"); setIsAdmin(false);
     }
   }, [session]);
 
@@ -868,18 +879,20 @@ function App() {
     content = <DayMap days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} />;
   } else if (tab === "diary") {
     content = <Diary days={days} onOpenDay={(i) => setOpenDay(i)} />;
-  } else {
+  } else if (tab === "admin" && isAdmin) {
     content = <Admin days={days} setDays={setDays} onReload={reload} />;
+  } else {
+    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} />;
   }
 
   return (
     <div className="layout">
       {saveErr && <div className="save-banner">{saveErr}</div>}
-      <Sidebar tab={tab} setTab={goTab} onLogout={logout} profile={profile} />
+      <Sidebar tab={tab} setTab={goTab} onLogout={logout} profile={profile} isAdmin={isAdmin} />
       <main className="main">
         <div className="content">{content}</div>
       </main>
-      <BottomNav tab={tab} setTab={goTab} />
+      <BottomNav tab={tab} setTab={goTab} isAdmin={isAdmin} />
     </div>
   );
 }
