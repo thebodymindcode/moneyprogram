@@ -170,14 +170,17 @@ button { font-family: inherit; }
 /* ============================================================
    Мой прогресс
    ============================================================ */
-.dash { display: grid; gap: 16px; grid-template-columns: 1fr; }
-@media (min-width: 760px) { .dash { grid-template-columns: 1fr 1fr; gap: 20px; } }
+/* minmax(0,1fr) и min-width:0 не дают внутреннему содержимому (например ленте
+   «Ближайшие дни») растягивать колонку шире экрана */
+.dash { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.dash > * { min-width: 0; }
+@media (min-width: 760px) { .dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; } }
 .span2 { grid-column: 1 / -1; }
 
 /* кольцо прогресса */
 .ring-card { padding: 26px; display: flex; align-items: center; gap: 24px; }
 .ring { position: relative; width: 132px; height: 132px; flex: none; }
-.ring svg { transform: rotate(-90deg); display: block; }
+.ring svg { transform: rotate(-90deg); display: block; width: 100%; height: 100%; }
 .ring .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .ring .day { font-size: 12px; color: var(--ink-faint); font-weight: 700; letter-spacing: .04em; }
 .ring .big { font-size: 38px; font-weight: 800; letter-spacing: -.04em; line-height: 1; }
@@ -192,6 +195,7 @@ button { font-family: inherit; }
 /* карточка «сегодня» */
 .today-card { display: flex; flex-direction: column; }
 .today-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.today-top .meta { min-width: 0; }
 .today-num {
   width: 56px; height: 56px; flex: none; border-radius: 17px;
   background: linear-gradient(160deg, var(--steel-2), #18222e); color: #fff;
@@ -251,7 +255,7 @@ button { font-family: inherit; }
 .last-note .src .go::after { content: " ›"; }
 
 /* мини-маршрут на дашборде */
-.upnext { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.upnext { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; min-width: 0; max-width: 100%; }
 .upnext::-webkit-scrollbar { display: none; }
 .upnext .mini {
   flex: none; width: 150px; padding: 15px; cursor: pointer;
