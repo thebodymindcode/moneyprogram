@@ -140,6 +140,7 @@ const Ico = {
   layers: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>,
   body: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="6" r="3"/><path d="M5 21c0-4 3.1-7 7-7s7 3 7 7"/></svg>,
   drop: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3.2s6 5.7 6 9.8a6 6 0 01-12 0c0-4.1 6-9.8 6-9.8z"/></svg>,
+  chart: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 21h18"/><rect x="5" y="11" width="3.2" height="7" rx="1"/><rect x="10.4" y="6.5" width="3.2" height="11.5" rx="1"/><rect x="15.8" y="13.5" width="3.2" height="4.5" rx="1"/></svg>,
 };
 
 /* ========================= ProgressRing ========================= */
@@ -723,6 +724,233 @@ function AccessSection() {
   );
 }
 
+/* ========================= Статистика участников ========================= */
+// застрял, если не закрыл ни одного нового дня столько дней подряд при идущей программе
+const STUCK_AFTER_DAYS = 3;
+
+// русское склонение числа: 1 минута, 2 минуты, 5 минут
+const plural = (n, one, few, many) => {
+  const a = Math.abs(n) % 100, b = n % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+};
+
+// «2 дня назад», «вчера», «только что» из метки времени (мс)
+function timeAgo(ms, now) {
+  if (!ms) return "нет активности";
+  const diff = now - ms;
+  if (diff < 45000) return "только что";
+  const min = Math.floor(diff / 60000);
+  if (min < 60) return min + " " + plural(min, "минуту", "минуты", "минут") + " назад";
+  const hr = Math.floor(diff / 3600000);
+  if (hr < 24) return hr + " " + plural(hr, "час", "часа", "часов") + " назад";
+  const d = Math.floor(diff / 86400000);
+  if (d === 1) return "вчера";
+  if (d < 7) return d + " " + plural(d, "день", "дня", "дней") + " назад";
+  if (d < 31) { const w = Math.floor(d / 7); return w + " " + plural(w, "неделю", "недели", "недель") + " назад"; }
+  const mo = Math.floor(d / 30);
+  return mo + " " + plural(mo, "месяц", "месяца", "месяцев") + " назад";
+}
+
+const ST_STATUS = {
+  passed: { label: "Прошёл",  cls: "passed" },
+  active: { label: "Активен", cls: "active" },
+  stuck:  { label: "Застрял", cls: "stuck" },
+  none:   { label: "Не начал", cls: "none" },
+};
+
+function StatsSection({ totalDays }) {
+  const [rows, setRows] = useState(null);   // null = загрузка
+  const [err, setErr] = useState("");
+  const [sort, setSort] = useState("progress"); // progress | activity
+
+  const load = async () => {
+    setErr(""); setRows(null);
+    // только прогресс и профиль, без личных ответов и заметок (приватность)
+    const [pr, gr, ad] = await Promise.all([
+      sb.from("profiles").select("id,name,email"),
+      sb.from("progress").select("user_id,completed,completed_at"),
+      sb.from("admins").select("email"),
+    ]);
+    if (pr.error || gr.error) {
+      const e = pr.error || gr.error;
+      setRows([]);
+      setErr("Не удалось загрузить данные. Запусти SQL для доступа админа (supabase/admin_stats.sql), затем обнови. " + ((e && e.message) || ""));
+      return;
+    }
+    const adminSet = new Set(((ad.data) || []).map((r) => (r.email || "").toLowerCase()));
+    const byUser = {};
+    (pr.data || []).forEach((p) => {
+      const email = (p.email || "").toLowerCase();
+      if (adminSet.has(email)) return; // админов в сводке участников не показываем
+      byUser[p.id] = { id: p.id, name: (p.name || "").trim(), email: p.email || "", completed: 0, last: null };
+    });
+    (gr.data || []).forEach((r) => {
+      const u = byUser[r.user_id];
+      if (!u || !r.completed) return;
+      u.completed += 1;
+      if (r.completed_at) {
+        const t = new Date(r.completed_at).getTime();
+        if (!u.last || t > u.last) u.last = t;
+      }
+    });
+    const now = Date.now();
+    const list = Object.values(byUser).map((u) => {
+      const daysSince = u.last ? Math.floor((now - u.last) / 86400000) : null;
+      let status;
+      if (u.completed >= totalDays) status = "passed";
+      else if (u.completed === 0) status = "none";
+      else if (daysSince === null || daysSince >= STUCK_AFTER_DAYS) status = "stuck";
+      else status = "active";
+      const curDay = u.completed === 0 ? 0 : Math.min(u.completed + 1, totalDays);
+      const stageIdx = u.completed === 0 ? -1 : stageOf(curDay);
+      return { ...u, status, daysSince, curDay, stageIdx };
+    });
+    setRows(list);
+  };
+  useEffect(() => { load(); }, []);
+
+  const summary = useMemo(() => {
+    if (!rows) return null;
+    const total = rows.length;
+    const passed = rows.filter((r) => r.status === "passed").length;
+    const active = rows.filter((r) => r.status === "active").length;
+    const stuck  = rows.filter((r) => r.status === "stuck").length;
+    const avg = total ? Math.round(rows.reduce((s, r) => s + r.completed, 0) / (total * totalDays) * 100) : 0;
+    const dist = [0, 0, 0, 0, 0, 0]; // [не начали, этап1..этап5]
+    rows.forEach((r) => { if (r.stageIdx === -1) dist[0] += 1; else dist[r.stageIdx + 1] += 1; });
+    return { total, passed, active, stuck, avg, dist };
+  }, [rows, totalDays]);
+
+  const sorted = useMemo(() => {
+    if (!rows) return [];
+    const arr = rows.slice();
+    if (sort === "progress") arr.sort((a, b) => (b.completed - a.completed) || ((b.last || 0) - (a.last || 0)));
+    else arr.sort((a, b) => ((b.last || 0) - (a.last || 0)) || (b.completed - a.completed));
+    return arr;
+  }, [rows, sort]);
+
+  const distRows = [
+    { name: "Ещё не начали", range: "" },
+    ...STAGES.map((s) => ({ name: s.name, range: "Дни " + s.from + "-" + s.to })),
+  ];
+
+  const now = Date.now();
+
+  return (
+    <div className="page">
+      <div className="head-row">
+        <div>
+          <div className="eyebrow">Управление</div>
+          <h1>Статистика участников</h1>
+          <div className="sub">Прогресс и статус каждого. Личные ответы и заметки участников остаются приватными.</div>
+        </div>
+      </div>
+
+      {err && <div className="access-msg err" style={{ marginBottom: 16 }}>{err}</div>}
+
+      {rows === null ? (
+        <div className="card center" style={{ padding: 40 }}>
+          <div className="muted" style={{ fontSize: 14 }}>Загружаю статистику…</div>
+        </div>
+      ) : summary.total === 0 && !err ? (
+        <div className="card center" style={{ padding: 40 }}>
+          <div style={{ fontSize: 30 }}>📊</div>
+          <div style={{ fontWeight: 700, marginTop: 8 }}>Пока нет участников</div>
+          <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Как только люди начнут проходить программу, здесь появится их прогресс.</div>
+        </div>
+      ) : summary.total > 0 ? (
+        <>
+          {/* сводка */}
+          <div className="st-cards">
+            <div className="st-kpi"><div className="v">{summary.total}</div><div className="k">всего участников</div></div>
+            <div className="st-kpi"><div className="v">{summary.active}</div><div className="k">активны сейчас</div></div>
+            <div className={"st-kpi" + (summary.stuck > 0 ? " stuck-on" : "")}><div className="v">{summary.stuck}</div><div className="k">застряли</div></div>
+            <div className="st-kpi"><div className="v">{summary.passed}</div><div className="k">прошли всю программу</div></div>
+            <div className="st-kpi st-kpi-accent">
+              <div className="v">{summary.avg}%</div>
+              <div className="k">средний прогресс</div>
+              <div className="st-kpi-bar"><i style={{ width: summary.avg + "%" }} /></div>
+            </div>
+          </div>
+
+          {/* распределение по этапам */}
+          <div className="card st-dist">
+            <div className="eyebrow">Распределение</div>
+            <div className="block-title">Где сейчас участники</div>
+            <div className="st-bars">
+              {distRows.map((d, i) => {
+                const count = summary.dist[i];
+                const w = summary.total ? Math.round(count / summary.total * 100) : 0;
+                return (
+                  <div key={i} className="st-bar-row">
+                    <div className="st-bar-label">
+                      <span className="nm">{d.name}</span>
+                      {d.range && <span className="rg muted">{d.range}</span>}
+                    </div>
+                    <div className="st-bar-num">{count}</div>
+                    <div className="st-bar-track"><i className={"st-bar-fill s" + i} style={{ width: w + "%" }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* список участников */}
+          <div className="st-toolbar">
+            <h2 style={{ fontSize: 18 }}>Участники <span className="faint" style={{ fontWeight: 700, fontSize: 14 }}>· {summary.total}</span></h2>
+            <div className="st-sort">
+              <button className={sort === "progress" ? "active" : ""} onClick={() => setSort("progress")}>По прогрессу</button>
+              <button className={sort === "activity" ? "active" : ""} onClick={() => setSort("activity")}>По активности</button>
+            </div>
+          </div>
+
+          <div className="st-table">
+            <div className="st-thead">
+              <div>Участник</div><div>Прогресс</div><div>Этап</div><div>Активность</div><div>Статус</div>
+            </div>
+            {sorted.map((r) => {
+              const pct = Math.round(r.completed / totalDays * 100);
+              const initial = ((r.name || r.email || "?").trim().charAt(0) || "?").toUpperCase();
+              const st = ST_STATUS[r.status];
+              const sCell = r.status === "none" ? { nm: "Ещё не начал", sub: "" }
+                : r.status === "passed" ? { nm: "Пройдено", sub: "все " + totalDays + " дней" }
+                : { nm: STAGES[r.stageIdx].name, sub: "идёт день " + r.curDay };
+              return (
+                <div key={r.id} className={"st-row " + st.cls}>
+                  <div className="st-c st-who">
+                    <div className="st-ava">{initial}</div>
+                    <div className="st-id">
+                      <div className="nm">{r.name || r.email}</div>
+                      {r.name && r.email ? <div className="em">{r.email}</div> : null}
+                    </div>
+                  </div>
+                  <div className="st-c st-prog">
+                    <span className="st-k">Прогресс</span>
+                    <div className="st-prog-top"><span className="num">{r.completed}/{totalDays}</span><span className="pct muted">{pct}%</span></div>
+                    <div className="st-prog-bar"><i style={{ width: pct + "%" }} /></div>
+                  </div>
+                  <div className="st-c st-stage">
+                    <span className="st-k">Этап</span>
+                    <div className="st-stage-v"><span className="nm">{sCell.nm}</span>{sCell.sub && <span className="sub">{sCell.sub}</span>}</div>
+                  </div>
+                  <div className="st-c st-act">
+                    <span className="st-k">Активность</span>
+                    <span className="val">{timeAgo(r.last, now)}</span>
+                  </div>
+                  <div className="st-c st-stat"><span className={"st-chip " + st.cls}>{st.label}</span></div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 /* ========================= Admin ========================= */
 function Admin({ days, setDays, onReload }) {
   const upd = (di, fn) => setDays(days.map((d, i) => (i === di ? fn({ ...d }) : d)));
@@ -796,11 +1024,12 @@ const NAV = [
   { k: "dashboard", label: "Мой прогресс", short: "Прогресс", icon: Ico.home },
   { k: "map", label: "Карта дней", short: "Карта", icon: Ico.map },
   { k: "diary", label: "Дневник", short: "Дневник", icon: Ico.book },
-  { k: "admin", label: "Админ", short: "Админ", icon: Ico.cog },
+  { k: "stats", label: "Статистика", short: "Сводка", icon: Ico.chart, adminOnly: true },
+  { k: "admin", label: "Админ", short: "Админ", icon: Ico.cog, adminOnly: true },
 ];
 
-// видимые пункты меню: «Админ» только для админов
-const navItems = (isAdmin) => NAV.filter((it) => it.k !== "admin" || isAdmin);
+// видимые пункты меню: помеченные adminOnly видны только админам
+const navItems = (isAdmin) => NAV.filter((it) => !it.adminOnly || isAdmin);
 
 function Sidebar({ tab, setTab, onLogout, profile, isAdmin }) {
   const name = (profile && profile.name) || "Профиль";
@@ -972,6 +1201,8 @@ function App() {
     content = <DayMap days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} />;
   } else if (tab === "diary") {
     content = <Diary days={days} onOpenDay={(i) => setOpenDay(i)} />;
+  } else if (tab === "stats" && isAdmin) {
+    content = <StatsSection totalDays={days.length} />;
   } else if (tab === "admin" && isAdmin) {
     content = <Admin days={days} setDays={setDays} onReload={reload} />;
   } else {

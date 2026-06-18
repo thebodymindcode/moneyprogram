@@ -662,3 +662,106 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
   .stat .v { font-size: 22px; }
   .stat { padding: 16px 6px; }
 }
+
+/* ============================================================
+   Статистика участников (только админ)
+   ============================================================ */
+/* сводка: на телефоне 2 в ряд, на широком 5 в ряд */
+.st-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.st-cards > * { min-width: 0; }
+@media (min-width: 760px) { .st-cards { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; } }
+.st-kpi {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow), var(--bevel);
+  padding: 16px 16px 15px;
+}
+.st-kpi .v { font-size: 28px; font-weight: 800; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.st-kpi .k { font-size: 11.5px; color: var(--ink-soft); font-weight: 600; margin-top: 8px; line-height: 1.3; }
+.st-kpi.stuck-on .v { color: #b5781f; }
+/* карточка среднего прогресса: на телефоне во всю ширину, на широком обычная колонка */
+.st-kpi-accent { grid-column: 1 / -1; background: linear-gradient(160deg, #fbfcfe 0%, #eef2f6 100%); }
+@media (min-width: 760px) { .st-kpi-accent { grid-column: auto; } }
+.st-kpi-bar { height: 6px; border-radius: 999px; background: var(--line); margin-top: 11px; overflow: hidden; }
+.st-kpi-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--steel-2), var(--steel)); transition: width .6s ease; }
+
+/* распределение по этапам */
+.st-dist { margin-bottom: 18px; }
+.st-bars { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+.st-bar-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px; row-gap: 8px; align-items: baseline;
+}
+.st-bar-label { min-width: 0; display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.st-bar-label .nm { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; }
+.st-bar-label .rg { font-size: 11.5px; font-weight: 600; }
+.st-bar-num { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.st-bar-track { grid-column: 1 / -1; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.st-bar-fill { display: block; height: 100%; border-radius: 999px; transition: width .6s ease; }
+.st-bar-fill.s0 { background: linear-gradient(90deg, #cfd6e0, #b6bfca); }
+.st-bar-fill.s1 { background: linear-gradient(90deg, #9aa6b6, #7d8b9d); }
+.st-bar-fill.s2 { background: linear-gradient(90deg, #7d8b9d, #5f6e82); }
+.st-bar-fill.s3 { background: linear-gradient(90deg, #566578, #44546a); }
+.st-bar-fill.s4 { background: linear-gradient(90deg, #3b4a5d, #2c3848); }
+.st-bar-fill.s5 { background: linear-gradient(90deg, #37b189, #218763); }
+
+/* панель списка: заголовок и сортировка */
+.st-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.st-sort { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 3px; box-shadow: var(--bevel); }
+.st-sort button {
+  border: none; background: none; cursor: pointer; font-family: inherit; font-weight: 700; font-size: 12.5px;
+  color: var(--ink-soft); padding: 8px 13px; border-radius: 9px; transition: color .18s, background .18s, box-shadow .18s; white-space: nowrap;
+}
+.st-sort button.active { background: linear-gradient(180deg, #3b4a5d, var(--steel) 60%, #1d2733); color: #fff; box-shadow: 0 4px 10px rgba(28,38,52,.25); }
+
+/* таблица участников: на телефоне карточки, на широком строки-сетка */
+.st-table { --st-cols: 1.7fr 1.25fr 1.15fr 1fr 0.92fr; display: flex; flex-direction: column; gap: 10px; }
+.st-thead { display: none; }
+@media (min-width: 760px) {
+  .st-thead { display: grid; grid-template-columns: var(--st-cols); gap: 14px; padding: 2px 18px 6px; }
+  .st-thead > div { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+}
+.st-row {
+  position: relative; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow), var(--bevel);
+  padding: 15px; display: flex; flex-direction: column; gap: 13px;
+}
+@media (min-width: 760px) {
+  .st-row { display: grid; grid-template-columns: var(--st-cols); gap: 14px; align-items: center; padding: 14px 18px; }
+}
+.st-c { min-width: 0; }
+.st-k { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+@media (min-width: 760px) { .st-k { display: none; } }
+
+.st-who { display: flex; align-items: center; gap: 11px; }
+.st-ava {
+  width: 38px; height: 38px; flex: none; border-radius: 11px;
+  background: linear-gradient(150deg, var(--steel-2), var(--steel)); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2);
+}
+.st-id { min-width: 0; }
+.st-id .nm { font-size: 14px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.st-id .em { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.st-prog-top { display: flex; align-items: baseline; gap: 8px; }
+.st-prog-top .num { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-prog-top .pct { font-size: 12px; }
+.st-prog-bar { height: 7px; border-radius: 999px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.st-prog-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--steel-2), var(--steel)); transition: width .6s ease; }
+.st-row.passed .st-prog-bar > i { background: linear-gradient(90deg, #37b189, #218763); }
+
+.st-stage-v .nm { font-size: 13.5px; font-weight: 700; line-height: 1.25; }
+.st-stage-v .sub { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+.st-act .val { font-size: 13px; color: var(--ink-soft); font-weight: 600; }
+
+.st-chip { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .02em; padding: 5px 11px; border-radius: 999px; white-space: nowrap; }
+.st-chip.passed { background: var(--good-soft); color: var(--good); }
+.st-chip.active { background: #e8eef7; color: #3f5d80; }
+.st-chip.stuck  { background: #fcefe0; color: #b5781f; }
+.st-chip.none   { background: #eef1f5; color: var(--ink-faint); }
+
+/* телефон: статус-чип в правый верхний угол карточки участника */
+@media (max-width: 759px) {
+  .st-stat { position: absolute; top: 15px; right: 15px; }
+  .st-who { padding-right: 92px; }
+}

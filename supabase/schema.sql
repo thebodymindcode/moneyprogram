@@ -214,6 +214,11 @@ drop policy if exists profiles_insert_own on public.profiles;
 create policy profiles_insert_own on public.profiles
   for insert to authenticated with check (auth.uid() = id);
 
+-- profiles: админ видит профили всех (для раздела «Статистика участников», только чтение)
+drop policy if exists profiles_select_admin on public.profiles;
+create policy profiles_select_admin on public.profiles
+  for select to authenticated using (public.is_admin());
+
 -- days: читают только допущенные в программу, меняет только админ
 drop policy if exists days_select_auth on public.days;
 create policy days_select_auth on public.days
@@ -238,6 +243,11 @@ create policy progress_own on public.progress
   for all to authenticated
   using (auth.uid() = user_id and public.current_email_allowed())
   with check (auth.uid() = user_id and public.current_email_allowed());
+
+-- progress: админ видит прогресс всех (для раздела «Статистика участников», только чтение)
+drop policy if exists progress_select_admin on public.progress;
+create policy progress_select_admin on public.progress
+  for select to authenticated using (public.is_admin());
 
 -- task_answers: только свои строки и только если допущен
 drop policy if exists task_answers_own on public.task_answers;
