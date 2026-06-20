@@ -15,11 +15,28 @@ const extOf = (name) => (String(name).split(".").pop() || "").toLowerCase();
 // безопасное имя файла для пути в хранилище (латиница, цифры, дефис, точка)
 const slugFile = (name) => String(name).toLowerCase().replace(/[^a-z0-9.\-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "audio";
 
-// подписанная ссылка на приватный файл (работает только у залогиненного участника из списка)
-async function signedAudioUrl(path) {
-  const { data, error } = await sb.storage.from(AUDIO_BUCKET).createSignedUrl(path, SIGNED_TTL);
-  if (error) throw error;
-  return data.signedUrl;
+const AUDIO_MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg" };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// подписанная ссылка на приватный файл (работает только у залогиненного участника из списка).
+// С повторами: на свежей загрузке страницы токен Supabase может ещё обновляться,
+// и первая попытка подписи уходит со старым токеном, хранилище отвечает ошибкой.
+// Поэтому сначала дожидаемся готовой сессии, и при сбое пробуем ещё пару раз с паузой.
+async function signedAudioUrl(path, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      await sb.auth.getSession();   // дать клиенту дойти до актуального токена
+      const { data, error } = await sb.storage.from(AUDIO_BUCKET).createSignedUrl(path, SIGNED_TTL);
+      if (error) throw error;
+      if (data && data.signedUrl) return data.signedUrl;
+      throw new Error("пустая ссылка на аудио");
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await sleep(500 * (i + 1));   // 0.5с, 1с
+    }
+  }
+  throw lastErr || new Error("не удалось подписать ссылку");
 }
 
 // прочитать длительность аудио из локального файла (до загрузки), в секундах
@@ -47,7 +64,10 @@ function uploadAudioFile(path, file, onProgress) {
       xhr.open("POST", url, true);
       xhr.setRequestHeader("Authorization", "Bearer " + token);
       xhr.setRequestHeader("x-upsert", "true");
-      if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+      // верный content-type, чтобы браузер потом нормально проигрывал и перематывал.
+      // У m4a/ogg file.type иногда пустой, поэтому берём по расширению.
+      const ctype = file.type || AUDIO_MIME[extOf(file.name)] || "application/octet-stream";
+      xhr.setRequestHeader("Content-Type", ctype);
       xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)); };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve(true);
@@ -502,25 +522,38 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay }) {
 function Player({ day }) {
   const audioRef = useRef(null);
   const barRef = useRef(null);
-  const [src, setSrc] = useState(undefined);   // undefined=ещё не знаем, null=аудио нет, ""=ошибка, строка=ссылка
+  const reqId = useRef(0);          // номер запроса ссылки: гасит гонки при быстром переключении дней
+  const recoverLeft = useRef(2);    // сколько раз ещё пробуем переполучить ссылку при сбое <audio>
+  const resumeAt = useRef(0);       // позиция, на которую вернуться после переполучения ссылки
+  const shouldResume = useRef(false); // продолжать ли играть после восстановления
+  const [src, setSrc] = useState(undefined);   // undefined=грузим, null=аудио нет, ""=ошибка, строка=ссылка
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
 
-  // получаем подписанную ссылку на аудио этого дня (приватный файл)
-  useEffect(() => {
-    let alive = true;
-    setPlaying(false); setT(0); setDur(day.duration || 0);
-    if (!day.audioPath) { setSrc(null); return; }
+  // взять (или переполучить) подписанную ссылку. resume = позиция для продолжения
+  const loadSrc = (resume) => {
+    const my = ++reqId.current;
+    resumeAt.current = resume || 0;
     setSrc(undefined);
     signedAudioUrl(day.audioPath)
-      .then((u) => { if (alive) setSrc(u); })
-      .catch(() => { if (alive) setSrc(""); });
-    return () => { alive = false; };
+      .then((u) => { if (my === reqId.current) setSrc(u); })
+      .catch(() => { if (my === reqId.current) setSrc(""); });
+  };
+
+  // смена дня: сбрасываем и берём ссылку заново
+  useEffect(() => {
+    setPlaying(false); setT(0); setDur(day.duration || 0);
+    recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false;
+    if (!day.audioPath) { reqId.current++; setSrc(null); return; }
+    loadSrc(0);
+    // loadSrc и day.audioPath стабильны для этого дня
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.id, day.audioPath]);
 
-  // аудио для дня не загружено или не открылось: честное сообщение, без фейкового таймера
+  // аудио для дня не загружено или совсем не открылось: честное сообщение, без фейкового таймера
   if (src === null || src === "") {
+    const failed = src === "";
     return (
       <div className="card">
         <div className="player">
@@ -529,17 +562,37 @@ function Player({ day }) {
             <div className="k">Урок дня</div>
             <div className="t">{day.title}</div>
           </div>
+          {failed && (
+            <button className="play-btn" title="Повторить"
+              onClick={() => { recoverLeft.current = 2; loadSrc(0); }}><Ico.play /></button>
+          )}
         </div>
         <div className="player-empty">
-          {src === "" ? "Не удалось открыть аудио. Обнови страницу или попробуй позже." : "Аудио для этого дня пока не загружено."}
+          {failed ? "Аудио не открылось. Нажми кнопку справа, чтобы попробовать ещё раз." : "Аудио для этого дня пока не загружено."}
         </div>
       </div>
     );
   }
 
   const loading = src === undefined;
-  const onLoaded = () => { const a = audioRef.current; if (a && isFinite(a.duration)) setDur(a.duration); };
+  const onLoaded = () => {
+    const a = audioRef.current; if (!a) return;
+    if (isFinite(a.duration)) setDur(a.duration);
+    if (resumeAt.current > 0) { try { a.currentTime = resumeAt.current; } catch (e) {} resumeAt.current = 0; }
+    if (shouldResume.current) { shouldResume.current = false; a.play().catch(() => {}); }
+  };
   const onTime = () => { const a = audioRef.current; if (a) setT(a.currentTime); };
+  // сбой воспроизведения (просроченная/битая ссылка, разрыв сети): тихо переполучаем ссылку
+  const onAudioError = () => {
+    const a = audioRef.current;
+    if (recoverLeft.current > 0) {
+      recoverLeft.current -= 1;
+      shouldResume.current = a ? !a.paused : false;
+      loadSrc(a ? a.currentTime : 0);
+    } else {
+      setSrc("");
+    }
+  };
   const toggle = () => {
     const a = audioRef.current; if (!a) return;
     if (a.paused) a.play().catch(() => setPlaying(false));
@@ -558,7 +611,7 @@ function Player({ day }) {
     <div className="card">
       {!loading && (
         <audio ref={audioRef} src={src} preload="metadata"
-          onLoadedMetadata={onLoaded} onTimeUpdate={onTime}
+          onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onError={onAudioError}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
       )}
       <div className="player">

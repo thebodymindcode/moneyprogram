@@ -17,13 +17,31 @@ const SIGNED_TTL = 60 * 60 * 6;
 const isUuid = v => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const extOf = name => (String(name).split(".").pop() || "").toLowerCase();
 const slugFile = name => String(name).toLowerCase().replace(/[^a-z0-9.\-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "audio";
-async function signedAudioUrl(path) {
-  const {
-    data,
-    error
-  } = await sb.storage.from(AUDIO_BUCKET).createSignedUrl(path, SIGNED_TTL);
-  if (error) throw error;
-  return data.signedUrl;
+const AUDIO_MIME = {
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  ogg: "audio/ogg"
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function signedAudioUrl(path, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      await sb.auth.getSession();
+      const {
+        data,
+        error
+      } = await sb.storage.from(AUDIO_BUCKET).createSignedUrl(path, SIGNED_TTL);
+      if (error) throw error;
+      if (data && data.signedUrl) return data.signedUrl;
+      throw new Error("пустая ссылка на аудио");
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await sleep(500 * (i + 1));
+    }
+  }
+  throw lastErr || new Error("не удалось подписать ссылку");
 }
 function readAudioDuration(file) {
   return new Promise(resolve => {
@@ -58,7 +76,8 @@ function uploadAudioFile(path, file, onProgress) {
       xhr.open("POST", url, true);
       xhr.setRequestHeader("Authorization", "Bearer " + token);
       xhr.setRequestHeader("x-upsert", "true");
-      if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+      const ctype = file.type || AUDIO_MIME[extOf(file.name)] || "application/octet-stream";
+      xhr.setRequestHeader("Content-Type", ctype);
       xhr.upload.onprogress = e => {
         if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
       };
@@ -920,30 +939,40 @@ function Player({
 }) {
   const audioRef = useRef(null);
   const barRef = useRef(null);
+  const reqId = useRef(0);
+  const recoverLeft = useRef(2);
+  const resumeAt = useRef(0);
+  const shouldResume = useRef(false);
   const [src, setSrc] = useState(undefined);
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
+  const loadSrc = resume => {
+    const my = ++reqId.current;
+    resumeAt.current = resume || 0;
+    setSrc(undefined);
+    signedAudioUrl(day.audioPath).then(u => {
+      if (my === reqId.current) setSrc(u);
+    }).catch(() => {
+      if (my === reqId.current) setSrc("");
+    });
+  };
   useEffect(() => {
-    let alive = true;
     setPlaying(false);
     setT(0);
     setDur(day.duration || 0);
+    recoverLeft.current = 2;
+    resumeAt.current = 0;
+    shouldResume.current = false;
     if (!day.audioPath) {
+      reqId.current++;
       setSrc(null);
       return;
     }
-    setSrc(undefined);
-    signedAudioUrl(day.audioPath).then(u => {
-      if (alive) setSrc(u);
-    }).catch(() => {
-      if (alive) setSrc("");
-    });
-    return () => {
-      alive = false;
-    };
+    loadSrc(0);
   }, [day.id, day.audioPath]);
   if (src === null || src === "") {
+    const failed = src === "";
     return React.createElement("div", {
       className: "card"
     }, React.createElement("div", {
@@ -956,18 +985,46 @@ function Player({
       className: "k"
     }, "\u0423\u0440\u043E\u043A \u0434\u043D\u044F"), React.createElement("div", {
       className: "t"
-    }, day.title))), React.createElement("div", {
+    }, day.title)), failed && React.createElement("button", {
+      className: "play-btn",
+      title: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C",
+      onClick: () => {
+        recoverLeft.current = 2;
+        loadSrc(0);
+      }
+    }, React.createElement(Ico.play, null))), React.createElement("div", {
       className: "player-empty"
-    }, src === "" ? "Не удалось открыть аудио. Обнови страницу или попробуй позже." : "Аудио для этого дня пока не загружено."));
+    }, failed ? "Аудио не открылось. Нажми кнопку справа, чтобы попробовать ещё раз." : "Аудио для этого дня пока не загружено."));
   }
   const loading = src === undefined;
   const onLoaded = () => {
     const a = audioRef.current;
-    if (a && isFinite(a.duration)) setDur(a.duration);
+    if (!a) return;
+    if (isFinite(a.duration)) setDur(a.duration);
+    if (resumeAt.current > 0) {
+      try {
+        a.currentTime = resumeAt.current;
+      } catch (e) {}
+      resumeAt.current = 0;
+    }
+    if (shouldResume.current) {
+      shouldResume.current = false;
+      a.play().catch(() => {});
+    }
   };
   const onTime = () => {
     const a = audioRef.current;
     if (a) setT(a.currentTime);
+  };
+  const onAudioError = () => {
+    const a = audioRef.current;
+    if (recoverLeft.current > 0) {
+      recoverLeft.current -= 1;
+      shouldResume.current = a ? !a.paused : false;
+      loadSrc(a ? a.currentTime : 0);
+    } else {
+      setSrc("");
+    }
   };
   const toggle = () => {
     const a = audioRef.current;
@@ -992,6 +1049,7 @@ function Player({
     preload: "metadata",
     onLoadedMetadata: onLoaded,
     onTimeUpdate: onTime,
+    onError: onAudioError,
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),
     onEnded: () => setPlaying(false)
