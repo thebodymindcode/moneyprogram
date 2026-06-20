@@ -4,6 +4,62 @@ const { useState, useEffect, useMemo, useRef } = React;
 const sb = window.sb; // единый клиент Supabase (создан в supabaseClient.js)
 const nowISO = () => new Date().toISOString();
 
+/* ----- аудио уроков в Supabase Storage ----- */
+const AUDIO_BUCKET = "lesson-audio";
+const MAX_AUDIO_MB = 50;                                   // разумный лимит размера файла
+const AUDIO_EXT = ["mp3", "m4a", "wav", "ogg"];            // поддерживаемые форматы
+const SIGNED_TTL = 60 * 60 * 6;                            // ссылка на аудио живёт 6 часов
+
+const isUuid = (v) => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const extOf = (name) => (String(name).split(".").pop() || "").toLowerCase();
+// безопасное имя файла для пути в хранилище (латиница, цифры, дефис, точка)
+const slugFile = (name) => String(name).toLowerCase().replace(/[^a-z0-9.\-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "audio";
+
+// подписанная ссылка на приватный файл (работает только у залогиненного участника из списка)
+async function signedAudioUrl(path) {
+  const { data, error } = await sb.storage.from(AUDIO_BUCKET).createSignedUrl(path, SIGNED_TTL);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+// прочитать длительность аудио из локального файла (до загрузки), в секундах
+function readAudioDuration(file) {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("audio");
+      a.preload = "metadata";
+      a.onloadedmetadata = () => { const d = a.duration; URL.revokeObjectURL(url); resolve(isFinite(d) ? d : 0); };
+      a.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+      a.src = url;
+    } catch (e) { resolve(0); }
+  });
+}
+
+// загрузка файла в Storage через REST, с реальным прогрессом (supabase-js прогресс не отдаёт)
+function uploadAudioFile(path, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    sb.auth.getSession().then(({ data }) => {
+      const token = data && data.session && data.session.access_token;
+      if (!token) return reject(new Error("Сессия истекла. Войди заново и повтори загрузку."));
+      const url = window.SUPABASE_URL + "/storage/v1/object/" + AUDIO_BUCKET + "/" + path;
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Authorization", "Bearer " + token);
+      xhr.setRequestHeader("x-upsert", "true");
+      if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100)); };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(true);
+        else if (xhr.status === 403) reject(new Error("Нет прав на загрузку. Проверь, что ты в списке админов и запущен storage_audio.sql."));
+        else reject(new Error("Хранилище вернуло " + xhr.status + ". " + (xhr.responseText || "")));
+      };
+      xhr.onerror = () => reject(new Error("Сеть подвела при загрузке. Проверь интернет и повтори."));
+      xhr.send(file);
+    }).catch(reject);
+  });
+}
+
 const dayWord = (n) => {
   const a = Math.abs(n) % 100, b = n % 10;
   if (a > 10 && a < 20) return "дней";
@@ -36,7 +92,8 @@ async function loadDaysFromDb() {
     title: d.title,
     lesson: d.lesson || "",
     duration: Math.round((Number(d.duration_min) || 0) * 60),
-    audioName: d.audio_url || "",
+    audioPath: d.audio_url || "",                 // путь к файлу в Storage
+    audioName: d.audio_name || "",                // имя файла для показа в админке
     note: noteMap[d.day_number] || "",
     tasks: (tasksRes.data || [])
       .filter((t) => t.day_number === d.day_number)
@@ -441,38 +498,76 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay }) {
   );
 }
 
-/* ========================= Audio player (демо) ========================= */
+/* ========================= Audio player (настоящее аудио) ========================= */
 function Player({ day }) {
+  const audioRef = useRef(null);
+  const barRef = useRef(null);
+  const [src, setSrc] = useState(undefined);   // undefined=ещё не знаем, null=аудио нет, ""=ошибка, строка=ссылка
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
-  const barRef = useRef(null);
-  const dur = day.duration;
+  const [dur, setDur] = useState(day.duration || 0);
 
-  useEffect(() => { setPlaying(false); setT(0); }, [day.id]);
+  // получаем подписанную ссылку на аудио этого дня (приватный файл)
   useEffect(() => {
-    if (!playing) return;
-    const id = setInterval(() => {
-      setT((x) => { if (x + 1 >= dur) { setPlaying(false); return dur; } return x + 1; });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [playing, dur]);
+    let alive = true;
+    setPlaying(false); setT(0); setDur(day.duration || 0);
+    if (!day.audioPath) { setSrc(null); return; }
+    setSrc(undefined);
+    signedAudioUrl(day.audioPath)
+      .then((u) => { if (alive) setSrc(u); })
+      .catch(() => { if (alive) setSrc(""); });
+    return () => { alive = false; };
+  }, [day.id, day.audioPath]);
 
+  // аудио для дня не загружено или не открылось: честное сообщение, без фейкового таймера
+  if (src === null || src === "") {
+    return (
+      <div className="card">
+        <div className="player">
+          <div className="cover"><Ico.wave /></div>
+          <div className="pl-body">
+            <div className="k">Урок дня</div>
+            <div className="t">{day.title}</div>
+          </div>
+        </div>
+        <div className="player-empty">
+          {src === "" ? "Не удалось открыть аудио. Обнови страницу или попробуй позже." : "Аудио для этого дня пока не загружено."}
+        </div>
+      </div>
+    );
+  }
+
+  const loading = src === undefined;
+  const onLoaded = () => { const a = audioRef.current; if (a && isFinite(a.duration)) setDur(a.duration); };
+  const onTime = () => { const a = audioRef.current; if (a) setT(a.currentTime); };
+  const toggle = () => {
+    const a = audioRef.current; if (!a) return;
+    if (a.paused) a.play().catch(() => setPlaying(false));
+    else a.pause();
+  };
   const seek = (e) => {
+    const a = audioRef.current; if (!a || !dur) return;
     const rect = barRef.current.getBoundingClientRect();
     const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    setT(Math.min(dur, Math.max(0, Math.round((cx / rect.width) * dur))));
+    const nt = Math.min(dur, Math.max(0, (cx / rect.width) * dur));
+    a.currentTime = nt; setT(nt);
   };
-  const pct = (t / dur) * 100;
+  const pct = dur ? (t / dur) * 100 : 0;
 
   return (
     <div className="card">
+      {!loading && (
+        <audio ref={audioRef} src={src} preload="metadata"
+          onLoadedMetadata={onLoaded} onTimeUpdate={onTime}
+          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
+      )}
       <div className="player">
         <div className="cover"><Ico.wave /></div>
         <div className="pl-body">
           <div className="k">Урок дня</div>
           <div className="t">{day.title}</div>
         </div>
-        <button className="play-btn" onClick={() => { if (t >= dur) setT(0); setPlaying((p) => !p); }}>
+        <button className="play-btn" onClick={toggle} disabled={loading}>
           {playing ? <Ico.pause /> : <Ico.play />}
         </button>
       </div>
@@ -481,7 +576,7 @@ function Player({ day }) {
           <i style={{ width: pct + "%" }} />
           <b style={{ left: pct + "%" }} />
         </div>
-        <div className="seek-time"><span>{fmt(t)}</span><span>{fmt(dur)}</span></div>
+        <div className="seek-time"><span>{loading ? "загрузка…" : fmt(t)}</span><span>{fmt(dur)}</span></div>
       </div>
     </div>
   );
@@ -953,11 +1048,102 @@ function StatsSection({ totalDays }) {
 
 /* ========================= Admin ========================= */
 function Admin({ days, setDays, onReload }) {
+  // статус загрузки/сохранения по каждому дню, ключ = id дня
+  const [stMap, setStMap] = useState({});
+  const setSt = (id, patch) => setStMap((s) => ({ ...s, [id]: { ...(s[id] || {}), ...patch } }));
+  const st = (id) => stMap[id] || {};
+
   const upd = (di, fn) => setDays(days.map((d, i) => (i === di ? fn({ ...d }) : d)));
   const addDay = () => setDays([...days, {
-    id: (days.length ? days[days.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioName: "", note: "",
+    id: (days.length ? days[days.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioPath: "", audioName: "", note: "",
     tasks: [{ id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }],
   }]);
+
+  // выбрали файл аудио: проверяем, грузим в Storage, привязываем к дню, показываем плеер
+  const onPickAudio = async (di, file) => {
+    const d = days[di];
+    if (!file) return;
+    const ext = extOf(file.name);
+    if (!AUDIO_EXT.includes(ext)) {
+      setSt(d.id, { up: "error", msg: "Формат «." + ext + "» не поддержан. Нужен mp3, m4a, wav или ogg. Для веба надёжнее mp3 и m4a.", preview: null });
+      return;
+    }
+    const mb = file.size / 1024 / 1024;
+    if (mb > MAX_AUDIO_MB) {
+      setSt(d.id, { up: "error", msg: "Файл весит " + mb.toFixed(1) + " МБ, это больше лимита " + MAX_AUDIO_MB + " МБ. Сожми его или сохрани как mp3.", preview: null });
+      return;
+    }
+    setSt(d.id, { up: "uploading", progress: 0, msg: "", preview: null });
+    try {
+      const dur = await readAudioDuration(file);
+      const path = "day-" + d.id + "/" + Date.now() + "-" + slugFile(file.name);
+      await uploadAudioFile(path, file, (p) => setSt(d.id, { up: "uploading", progress: p }));
+      const preview = await signedAudioUrl(path);
+      const durSec = dur ? Math.round(dur) : d.duration;
+      upd(di, (x) => ({ ...x, audioPath: path, audioName: file.name, duration: durSec }));
+      // сразу привязываем аудио к дню в базе, чтобы ссылка не потерялась
+      const { error } = await sb.from("days").upsert(
+        { day_number: d.id, title: d.title, lesson: d.lesson, audio_url: path, audio_name: file.name, duration_min: durSec / 60 },
+        { onConflict: "day_number" }
+      );
+      if (error) throw error;
+      setSt(d.id, { up: "done", progress: 100, msg: file.name, preview });
+    } catch (e) {
+      setSt(d.id, { up: "error", msg: (e && e.message) || "Не удалось загрузить файл.", preview: null });
+    }
+  };
+
+  // сохранить все правки дня в базу: название, текст, ссылку на аудио и задания
+  const saveDay = async (di) => {
+    const d = days[di];
+    setSt(d.id, { save: "saving", saveMsg: "" });
+    try {
+      const { error: de } = await sb.from("days").upsert({
+        day_number: d.id,
+        title: d.title,
+        lesson: d.lesson,
+        audio_url: d.audioPath || null,
+        audio_name: d.audioName || null,
+        duration_min: (Number(d.duration) || 0) / 60,
+      }, { onConflict: "day_number" });
+      if (de) throw de;
+
+      // задания: уже существующие (с UUID) обновляем, новые вставляем, пропавшие удаляем.
+      // Так личные ответы участников по неизменённым заданиям не теряются.
+      const { data: existing, error: ee } = await sb.from("tasks").select("id,position").eq("day_number", d.id);
+      if (ee) throw ee;
+      const keepIds = d.tasks.filter((t) => isUuid(t.id)).map((t) => t.id);
+      const toDelete = (existing || []).filter((r) => !keepIds.includes(r.id)).map((r) => r.id);
+      if (toDelete.length) { const { error } = await sb.from("tasks").delete().in("id", toDelete); if (error) throw error; }
+
+      let maxPos = (existing || []).reduce((m, r) => Math.max(m, r.position || 0), 0);
+      const remap = [];
+      for (let i = 0; i < d.tasks.length; i++) {
+        const t = d.tasks[i];
+        const text = (t.text || "").trim();
+        if (!text) continue;
+        if (isUuid(t.id)) {
+          const { error } = await sb.from("tasks").update({ text }).eq("id", t.id);
+          if (error) throw error;
+        } else {
+          maxPos += 1;
+          const { data, error } = await sb.from("tasks").insert({ day_number: d.id, position: maxPos, text }).select("id").single();
+          if (error) throw error;
+          remap.push({ idx: i, id: data.id });
+        }
+      }
+      // подменяем временные id заданий настоящими, чтобы повторное «Сохранить» работало
+      if (remap.length) {
+        setDays((ds) => ds.map((x, ix) => ix !== di ? x : {
+          ...x, tasks: x.tasks.map((t, j) => { const f = remap.find((r) => r.idx === j); return f ? { ...t, id: f.id } : t; })
+        }));
+      }
+      setSt(d.id, { save: "saved", saveMsg: "Сохранено" });
+      setTimeout(() => setSt(d.id, { save: "idle", saveMsg: "" }), 3500);
+    } catch (e) {
+      setSt(d.id, { save: "error", saveMsg: (e && e.message) || "Не удалось сохранить." });
+    }
+  };
 
   return (
     <div className="page">
@@ -972,14 +1158,16 @@ function Admin({ days, setDays, onReload }) {
       <AccessSection />
 
       <div className="eyebrow" style={{ margin: "26px 0 14px" }}>Дни и уроки</div>
-      <div className="block-sub muted" style={{ marginTop: -8, marginBottom: 14 }}>Меняй названия, тексты уроков, аудио и задания. Сохранение правок в базу подключим позже, пока изменения видны до перезагрузки.</div>
+      <div className="block-sub muted" style={{ marginTop: -8, marginBottom: 14 }}>Меняй названия, тексты уроков, аудио и задания. Загрузи файл, потом нажми «Сохранить день», и правки уйдут в базу, останутся навсегда и покажутся участникам.</div>
       <div className="adm-actions">
         <button className="btn btn-primary btn-sm" onClick={addDay}>+ Добавить день</button>
         <button className="btn btn-ghost btn-sm" onClick={onReload}>Обновить из базы</button>
       </div>
 
       <div className="adm-list">
-        {days.map((d, di) => (
+        {days.map((d, di) => {
+          const s = st(d.id);
+          return (
           <div key={d.id} className="card adm-day">
             <div className="head">
               <div className="n">{d.id}</div>
@@ -993,11 +1181,25 @@ function Admin({ days, setDays, onReload }) {
             <div className="uploader">
               <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
                 <Ico.upload /> Загрузить аудио
-                <input type="file" accept="audio/*" style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files[0]; if (f) upd(di, (x) => ({ ...x, audioName: f.name })); }} />
+                <input type="file" accept=".mp3,.m4a,.wav,.ogg,audio/*" style={{ display: "none" }}
+                  onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; onPickAudio(di, f); }} />
               </label>
               <span className={"file-name" + (d.audioName ? "" : " empty")}>{d.audioName || "файл не выбран"}</span>
             </div>
+
+            {s.up === "uploading" && (
+              <div className="up-status">
+                <div className="up-bar"><i style={{ width: (s.progress || 0) + "%" }} /></div>
+                <div className="up-line muted">Загружается… {s.progress || 0}%</div>
+              </div>
+            )}
+            {s.up === "done" && (
+              <div className="up-status">
+                <div className="up-line ok"><span className="ok-tick">✓</span> Загружено: {s.msg}</div>
+                {s.preview && <audio className="up-preview" controls preload="metadata" src={s.preview} />}
+              </div>
+            )}
+            {s.up === "error" && <div className="up-line err">{s.msg}</div>}
 
             <div className="adm-label">Задания</div>
             {d.tasks.map((t, ti) => (
@@ -1009,11 +1211,20 @@ function Admin({ days, setDays, onReload }) {
               </div>
             ))}
             <button className="btn btn-ghost btn-sm adm-add"
-              onClick={() => upd(di, (x) => ({ ...x, tasks: [...x.tasks, { id: Date.now(), text: "Новое задание", done: false, answer: "" }] }))}>
+              onClick={() => upd(di, (x) => ({ ...x, tasks: [...x.tasks, { id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }] }))}>
               + Задание
             </button>
+
+            <div className="adm-save">
+              <button className="btn btn-primary btn-sm" disabled={s.save === "saving"} onClick={() => saveDay(di)}>
+                {s.save === "saving" ? "Сохраняю…" : "Сохранить день"}
+              </button>
+              {s.save === "saved" && <span className="save-ok"><span className="ok-tick">✓</span> {s.saveMsg}</span>}
+              {s.save === "error" && <span className="save-err">{s.saveMsg}</span>}
+            </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

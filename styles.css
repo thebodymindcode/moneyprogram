@@ -482,6 +482,27 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 .uploader .file-name { font-size: 13px; color: var(--ink-soft); }
 .uploader .file-name.empty { color: var(--ink-faint); }
 .adm-add { margin-top: 10px; }
+
+/* статус загрузки аудио в админке */
+.up-status { margin-top: 10px; }
+.up-bar { height: 8px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.up-bar > i { display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--steel-2), var(--steel)); transition: width .2s ease; }
+.up-line { font-size: 13px; margin-top: 7px; line-height: 1.4; word-break: break-word; }
+.up-line.ok { color: #1f8a4c; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.up-line.err { color: #c0392b; font-weight: 600; }
+.up-preview { display: block; width: 100%; margin-top: 10px; height: 40px; }
+
+/* сохранение дня */
+.adm-save { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px;
+  padding-top: 14px; border-top: 1px solid var(--line); }
+.save-ok { color: #1f8a4c; font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.save-err { color: #c0392b; font-weight: 600; font-size: 13px; word-break: break-word; }
+.ok-tick { font-weight: 800; }
+
+/* плеер: аудио для дня не загружено */
+.player-empty { margin-top: 14px; font-size: 13.5px; color: var(--ink-faint); line-height: 1.5; }
+
 @media (min-width: 760px) { .adm-list { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .adm-day { margin: 0; } }
 
 /* управление доступом */
