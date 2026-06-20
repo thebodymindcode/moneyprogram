@@ -9,5 +9,8 @@ node_modules/
 dist/
 .vite/
 
+# Отчёты проверки site-check
+_check/
+
 # Системное
 .DS_Store

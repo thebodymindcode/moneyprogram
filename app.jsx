@@ -1,4 +1,4 @@
-const { useState, useEffect, useMemo, useRef } = React;
+const { useState, useEffect, useMemo, useRef, useCallback, memo } = React;
 
 /* ========================= helpers ========================= */
 const sb = window.sb; // единый клиент Supabase (создан в supabaseClient.js)
@@ -734,20 +734,38 @@ function Diary({ days, onOpenDay }) {
 /* ========================= Управление доступом ========================= */
 const emailValid = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
+// Модульный кеш списка доступа: переживает переключение вкладок,
+// поэтому при возврате в админку список показывается сразу, без «Загрузка...»
+// и без мигания, а сетевой сбой не стирает уже показанные данные.
+let accessCache = { list: null, admins: [] };
+
 function AccessSection() {
-  const [list, setList] = useState(null);     // null = загрузка
-  const [admins, setAdmins] = useState([]);   // e-mail админов (их нельзя убрать)
+  const [list, setList] = useState(accessCache.list);     // null = ещё ни разу не грузили
+  const [admins, setAdmins] = useState(accessCache.admins); // e-mail админов (их нельзя убрать)
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState(null);       // {type:"ok"|"err", text}
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
   const load = async () => {
-    const a = await sb.from("admins").select("email");
-    setAdmins(((a.data) || []).map((r) => (r.email || "").toLowerCase()));
-    const { data, error } = await sb.from("allowed_emails").select("email, note, created_at").order("created_at", { ascending: true });
-    if (error) { setList([]); setMsg({ type: "err", text: "Не удалось загрузить список: " + (error.message || "") }); return; }
-    setList(data || []);
+    // оба запроса разом, так быстрее, чем один за другим
+    const [aRes, lRes] = await Promise.all([
+      sb.from("admins").select("email"),
+      sb.from("allowed_emails").select("email, note, created_at").order("created_at", { ascending: true }),
+    ]);
+    if (!aRes.error) {
+      const a = ((aRes.data) || []).map((r) => (r.email || "").toLowerCase());
+      accessCache.admins = a; setAdmins(a);
+    }
+    if (lRes.error) {
+      // ВАЖНО: не стираем уже показанный список из-за временного сбоя (обновление токена, сеть).
+      // Раньше тут был setList([]), из-за чего список «пропадал».
+      if (accessCache.list === null) setList([]);
+      setMsg({ type: "err", text: "Не удалось обновить список: " + (lRes.error.message || "") });
+      return;
+    }
+    accessCache.list = lRes.data || [];
+    setList(accessCache.list);
   };
   useEffect(() => { load(); }, []);
 
@@ -856,13 +874,16 @@ const ST_STATUS = {
   none:   { label: "Не начал", cls: "none" },
 };
 
+let statsCache = null; // переживает переключение вкладок, чтобы сводка не моргала при возврате
+
 function StatsSection({ totalDays }) {
-  const [rows, setRows] = useState(null);   // null = загрузка
+  const [rows, setRows] = useState(statsCache);   // null = ещё ни разу не грузили
   const [err, setErr] = useState("");
   const [sort, setSort] = useState("progress"); // progress | activity
 
   const load = async () => {
-    setErr(""); setRows(null);
+    setErr("");
+    if (statsCache === null) setRows(null); // первый раз показываем «Загрузка...», дальше держим прежнее
     // только прогресс и профиль, без личных ответов и заметок (приватность)
     const [pr, gr, ad] = await Promise.all([
       sb.from("profiles").select("id,name,email"),
@@ -871,7 +892,7 @@ function StatsSection({ totalDays }) {
     ]);
     if (pr.error || gr.error) {
       const e = pr.error || gr.error;
-      setRows([]);
+      if (statsCache === null) setRows([]); // не стираем уже показанную сводку из-за разового сбоя
       setErr("Не удалось загрузить данные. Запусти SQL для доступа админа (supabase/admin_stats.sql), затем обнови. " + ((e && e.message) || ""));
       return;
     }
@@ -903,7 +924,7 @@ function StatsSection({ totalDays }) {
       const stageIdx = u.completed === 0 ? -1 : stageOf(curDay);
       return { ...u, status, daysSince, curDay, stageIdx };
     });
-    setRows(list);
+    statsCache = list; setRows(list);
   };
   useEffect(() => { load(); }, []);
 
@@ -1047,21 +1068,93 @@ function StatsSection({ totalDays }) {
 }
 
 /* ========================= Admin ========================= */
+// Карточка одного дня вынесена и обёрнута в memo: при правке одного дня
+// перерисовывается только его карточка, а не все 17 сразу (раньше из-за этого
+// админка подлагивала при наборе текста). Все обработчики приходят стабильными.
+const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTaskText, onTaskRemove, onTaskAdd, onPickAudio, onSaveDay }) {
+  const s = status || {};
+  return (
+    <div className="card adm-day">
+      <div className="head">
+        <div className="n">{day.id}</div>
+        <input className="adm-input" value={day.title} onChange={(e) => onTitle(di, e.target.value)} />
+      </div>
+
+      <div className="adm-label">Текст урока</div>
+      <textarea className="adm-input" value={day.lesson} onChange={(e) => onLesson(di, e.target.value)} />
+
+      <div className="adm-label">Аудио урока</div>
+      <div className="uploader">
+        <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
+          <Ico.upload /> Загрузить аудио
+          <input type="file" accept=".mp3,.m4a,.wav,.ogg,audio/*" style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; onPickAudio(di, f); }} />
+        </label>
+        <span className={"file-name" + (day.audioName ? "" : " empty")}>{day.audioName || "файл не выбран"}</span>
+      </div>
+
+      {s.up === "uploading" && (
+        <div className="up-status">
+          <div className="up-bar"><i style={{ width: (s.progress || 0) + "%" }} /></div>
+          <div className="up-line muted">Загружается… {s.progress || 0}%</div>
+        </div>
+      )}
+      {s.up === "done" && (
+        <div className="up-status">
+          <div className="up-line ok"><span className="ok-tick">✓</span> Загружено: {s.msg}</div>
+          {s.preview && <audio className="up-preview" controls preload="metadata" src={s.preview} />}
+        </div>
+      )}
+      {s.up === "error" && <div className="up-line err">{s.msg}</div>}
+
+      <div className="adm-label">Задания</div>
+      {day.tasks.map((t, ti) => (
+        <div key={t.id} className="adm-task">
+          <input className="adm-input" value={t.text} onChange={(e) => onTaskText(di, ti, e.target.value)} />
+          <button className="icon-btn" title="Удалить" onClick={() => onTaskRemove(di, ti)}>×</button>
+        </div>
+      ))}
+      <button className="btn btn-ghost btn-sm adm-add" onClick={() => onTaskAdd(di)}>+ Задание</button>
+
+      <div className="adm-save">
+        <button className="btn btn-primary btn-sm" disabled={s.save === "saving"} onClick={() => onSaveDay(di)}>
+          {s.save === "saving" ? "Сохраняю…" : "Сохранить день"}
+        </button>
+        {s.save === "saved" && <span className="save-ok"><span className="ok-tick">✓</span> {s.saveMsg}</span>}
+        {s.save === "error" && <span className="save-err">{s.saveMsg}</span>}
+      </div>
+    </div>
+  );
+});
+
 function Admin({ days, setDays, onReload }) {
   // статус загрузки/сохранения по каждому дню, ключ = id дня
   const [stMap, setStMap] = useState({});
-  const setSt = (id, patch) => setStMap((s) => ({ ...s, [id]: { ...(s[id] || {}), ...patch } }));
-  const st = (id) => stMap[id] || {};
+  // ссылка на актуальные дни для асинхронных обработчиков (без пересоздания колбэков)
+  const daysRef = useRef(days);
+  daysRef.current = days;
 
-  const upd = (di, fn) => setDays(days.map((d, i) => (i === di ? fn({ ...d }) : d)));
-  const addDay = () => setDays([...days, {
-    id: (days.length ? days[days.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioPath: "", audioName: "", note: "",
+  const setSt = useCallback((id, patch) => setStMap((s) => ({ ...s, [id]: { ...(s[id] || {}), ...patch } })), []);
+
+  // одна стабильная точка правки дня по индексу, через функциональный setState
+  const patchDay = useCallback((di, patch) => {
+    setDays((ds) => ds.map((d, i) => (i === di ? { ...d, ...(typeof patch === "function" ? patch(d) : patch) } : d)));
+  }, [setDays]);
+
+  const onTitle = useCallback((di, v) => patchDay(di, { title: v }), [patchDay]);
+  const onLesson = useCallback((di, v) => patchDay(di, { lesson: v }), [patchDay]);
+  const onTaskText = useCallback((di, ti, v) => patchDay(di, (x) => ({ ...x, tasks: x.tasks.map((tt, j) => (j === ti ? { ...tt, text: v } : tt)) })), [patchDay]);
+  const onTaskRemove = useCallback((di, ti) => patchDay(di, (x) => ({ ...x, tasks: x.tasks.filter((_, j) => j !== ti) })), [patchDay]);
+  const onTaskAdd = useCallback((di) => patchDay(di, (x) => ({ ...x, tasks: [...x.tasks, { id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }] })), [patchDay]);
+
+  const addDay = useCallback(() => setDays((ds) => [...ds, {
+    id: (ds.length ? ds[ds.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioPath: "", audioName: "", note: "",
     tasks: [{ id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }],
-  }]);
+  }]), [setDays]);
 
   // выбрали файл аудио: проверяем, грузим в Storage, привязываем к дню, показываем плеер
-  const onPickAudio = async (di, file) => {
-    const d = days[di];
+  const onPickAudio = useCallback(async (di, file) => {
+    const d = daysRef.current[di];
     if (!file) return;
     const ext = extOf(file.name);
     if (!AUDIO_EXT.includes(ext)) {
@@ -1080,10 +1173,11 @@ function Admin({ days, setDays, onReload }) {
       await uploadAudioFile(path, file, (p) => setSt(d.id, { up: "uploading", progress: p }));
       const preview = await signedAudioUrl(path);
       const durSec = dur ? Math.round(dur) : d.duration;
-      upd(di, (x) => ({ ...x, audioPath: path, audioName: file.name, duration: durSec }));
+      patchDay(di, (x) => ({ ...x, audioPath: path, audioName: file.name, duration: durSec }));
       // сразу привязываем аудио к дню в базе, чтобы ссылка не потерялась
+      const cur = daysRef.current[di];
       const { error } = await sb.from("days").upsert(
-        { day_number: d.id, title: d.title, lesson: d.lesson, audio_url: path, audio_name: file.name, duration_min: durSec / 60 },
+        { day_number: d.id, title: cur.title, lesson: cur.lesson, audio_url: path, audio_name: file.name, duration_min: durSec / 60 },
         { onConflict: "day_number" }
       );
       if (error) throw error;
@@ -1091,11 +1185,11 @@ function Admin({ days, setDays, onReload }) {
     } catch (e) {
       setSt(d.id, { up: "error", msg: (e && e.message) || "Не удалось загрузить файл.", preview: null });
     }
-  };
+  }, [patchDay, setSt]);
 
   // сохранить все правки дня в базу: название, текст, ссылку на аудио и задания
-  const saveDay = async (di) => {
-    const d = days[di];
+  const onSaveDay = useCallback(async (di) => {
+    const d = daysRef.current[di];
     setSt(d.id, { save: "saving", saveMsg: "" });
     try {
       const { error: de } = await sb.from("days").upsert({
@@ -1143,7 +1237,7 @@ function Admin({ days, setDays, onReload }) {
     } catch (e) {
       setSt(d.id, { save: "error", saveMsg: (e && e.message) || "Не удалось сохранить." });
     }
-  };
+  }, [setDays, setSt]);
 
   return (
     <div className="page">
@@ -1165,66 +1259,12 @@ function Admin({ days, setDays, onReload }) {
       </div>
 
       <div className="adm-list">
-        {days.map((d, di) => {
-          const s = st(d.id);
-          return (
-          <div key={d.id} className="card adm-day">
-            <div className="head">
-              <div className="n">{d.id}</div>
-              <input className="adm-input" value={d.title} onChange={(e) => upd(di, (x) => ({ ...x, title: e.target.value }))} />
-            </div>
-
-            <div className="adm-label">Текст урока</div>
-            <textarea className="adm-input" value={d.lesson} onChange={(e) => upd(di, (x) => ({ ...x, lesson: e.target.value }))} />
-
-            <div className="adm-label">Аудио урока</div>
-            <div className="uploader">
-              <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
-                <Ico.upload /> Загрузить аудио
-                <input type="file" accept=".mp3,.m4a,.wav,.ogg,audio/*" style={{ display: "none" }}
-                  onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; onPickAudio(di, f); }} />
-              </label>
-              <span className={"file-name" + (d.audioName ? "" : " empty")}>{d.audioName || "файл не выбран"}</span>
-            </div>
-
-            {s.up === "uploading" && (
-              <div className="up-status">
-                <div className="up-bar"><i style={{ width: (s.progress || 0) + "%" }} /></div>
-                <div className="up-line muted">Загружается… {s.progress || 0}%</div>
-              </div>
-            )}
-            {s.up === "done" && (
-              <div className="up-status">
-                <div className="up-line ok"><span className="ok-tick">✓</span> Загружено: {s.msg}</div>
-                {s.preview && <audio className="up-preview" controls preload="metadata" src={s.preview} />}
-              </div>
-            )}
-            {s.up === "error" && <div className="up-line err">{s.msg}</div>}
-
-            <div className="adm-label">Задания</div>
-            {d.tasks.map((t, ti) => (
-              <div key={t.id} className="adm-task">
-                <input className="adm-input" value={t.text}
-                  onChange={(e) => upd(di, (x) => ({ ...x, tasks: x.tasks.map((tt, j) => (j === ti ? { ...tt, text: e.target.value } : tt)) }))} />
-                <button className="icon-btn" title="Удалить"
-                  onClick={() => upd(di, (x) => ({ ...x, tasks: x.tasks.filter((_, j) => j !== ti) }))}>×</button>
-              </div>
-            ))}
-            <button className="btn btn-ghost btn-sm adm-add"
-              onClick={() => upd(di, (x) => ({ ...x, tasks: [...x.tasks, { id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }] }))}>
-              + Задание
-            </button>
-
-            <div className="adm-save">
-              <button className="btn btn-primary btn-sm" disabled={s.save === "saving"} onClick={() => saveDay(di)}>
-                {s.save === "saving" ? "Сохраняю…" : "Сохранить день"}
-              </button>
-              {s.save === "saved" && <span className="save-ok"><span className="ok-tick">✓</span> {s.saveMsg}</span>}
-              {s.save === "error" && <span className="save-err">{s.saveMsg}</span>}
-            </div>
-          </div>
-          );
-        })}
+        {days.map((d, di) => (
+          <DayCard key={d.id} day={d} di={di} status={stMap[d.id]}
+            onTitle={onTitle} onLesson={onLesson} onTaskText={onTaskText}
+            onTaskRemove={onTaskRemove} onTaskAdd={onTaskAdd}
+            onPickAudio={onPickAudio} onSaveDay={onSaveDay} />
+        ))}
       </div>
     </div>
   );
@@ -1309,8 +1349,17 @@ function App() {
   // сессия: восстановление при загрузке и слежение за входом/выходом
   useEffect(() => {
     if (!sb) { setSession(null); return; }
-    sb.auth.getSession().then(({ data }) => setSession(data.session || null));
-    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s || null));
+    // не дёргаем состояние, если по сути сессия не изменилась: тот же пользователь и тот же токен.
+    // Supabase шлёт событие при каждом фокусе вкладки и фоновом обновлении токена,
+    // а лишний setSession перерисовывает всё приложение и ощущается как подлагивание.
+    const applySession = (s) => setSession((prev) => {
+      const next = s || null;
+      if (prev && next && prev.user && next.user && prev.user.id === next.user.id && prev.access_token === next.access_token) return prev;
+      if (prev === null && next === null) return prev;
+      return next;
+    });
+    sb.auth.getSession().then(({ data }) => applySession(data.session));
+    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => applySession(s));
     return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
   }, []);
 
