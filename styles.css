@@ -539,11 +539,11 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 @media (min-width: 900px) { .bottomnav { display: none; } }
 .bottomnav button {
   flex: 1; min-width: 0; min-height: 48px; border: none; background: none; cursor: pointer;
-  padding: 8px 3px; border-radius: 15px;
+  padding: 8px 3px; border-radius: 15px; overflow: hidden;
   color: var(--ink-faint); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   font-size: 11px; font-weight: 700; transition: all .2s;
 }
-.bottomnav button span, .bottomnav button { white-space: nowrap; }
+.bottomnav button span, .bottomnav button { white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
 .bottomnav button.active { color: var(--steel); background: var(--surface); box-shadow: var(--shadow), var(--bevel); }
 .bottomnav button svg { width: 22px; height: 22px; flex: none; }
 
@@ -785,4 +785,89 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 @media (max-width: 759px) {
   .st-stat { position: absolute; top: 15px; right: 15px; }
   .st-who { padding-right: 92px; }
+}
+
+/* ============================================================
+   Инструкция (раздел помощи)
+   Крупный текст, много воздуха, шаги карточками с номером.
+   ============================================================ */
+.guide-col { max-width: 720px; }
+.guide-col p { margin: 0 0 12px; font-size: 16.5px; line-height: 1.62; color: #36424f; }
+.guide-col p:last-child { margin-bottom: 0; }
+
+/* вводная карточка */
+.guide-intro { padding: 24px; }
+.guide-intro .gi-title { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 12px; }
+
+/* карточка шага */
+.guide-step { padding: 22px; }
+.gs-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.gs-num {
+  width: 48px; height: 48px; flex: none; border-radius: 15px;
+  background: linear-gradient(150deg, #3b4a5d 0%, var(--steel) 58%, #1d2733 100%);
+  color: #fff; font-size: 22px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.gs-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.gs-text { margin-bottom: 2px; }
+.gs-list { margin: 4px 0 0; padding-left: 0; list-style: none; }
+.gs-list li {
+  position: relative; padding-left: 26px; margin-bottom: 12px;
+  font-size: 16px; line-height: 1.55; color: #36424f;
+}
+.gs-list li:last-child { margin-bottom: 0; }
+.gs-list li::before {
+  content: ""; position: absolute; left: 4px; top: 9px;
+  width: 8px; height: 8px; border-radius: 999px;
+  background: linear-gradient(150deg, var(--steel-2), var(--steel));
+}
+.gs-list b { color: var(--steel); font-weight: 800; }
+
+/* картинка-экран */
+.gs-shot { margin: 16px 0 0; }
+.gs-shot img {
+  display: block; width: 100%; height: auto;
+  border-radius: 16px; border: 1px solid var(--line);
+  box-shadow: var(--shadow); background: #f4f6f9;
+}
+.gs-shot figcaption { margin-top: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-faint); text-align: center; }
+.gs-frame {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 200px; border-radius: 16px; padding: 20px; text-align: center;
+  border: 2px dashed var(--silver-3); color: var(--ink-faint);
+  font-size: 14.5px; font-weight: 600; background: var(--surface-2);
+}
+
+/* карточка «ничего не потеряется» */
+.guide-calm {
+  padding: 24px; border: 1px solid #cfe6da;
+  background: linear-gradient(180deg, #f3fbf7 0%, #eaf5ef 100%);
+}
+.guide-calm .gc-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 10px; color: #226b50; }
+.guide-calm p { color: #2f5e4b; margin: 0; }
+
+/* частые вопросы */
+.guide-faq-head { margin: 30px 0 14px; }
+.guide-faq-head h2 { font-size: 22px; margin-top: 4px; }
+.faq-item { padding: 18px 20px; }
+.faq-q {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3;
+}
+.faq-mark {
+  width: 28px; height: 28px; flex: none; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--bevel);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: var(--steel);
+}
+.faq-a { margin: 10px 0 0; padding-left: 40px; font-size: 15.5px; line-height: 1.6; color: #4a5563; }
+
+.guide-end { margin: 26px 0 4px; text-align: center; font-size: 15px; font-weight: 600; }
+
+/* совсем узкий экран: номер шага чуть меньше */
+@media (max-width: 380px) {
+  .gs-num { width: 42px; height: 42px; font-size: 19px; border-radius: 13px; }
+  .gs-title { font-size: 17.5px; }
+  .faq-a { padding-left: 0; }
 }

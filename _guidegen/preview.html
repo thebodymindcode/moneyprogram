@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="../styles.css" />
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.APP_CONFIG = { START_DATE: "2026-07-01", OPEN_HOUR: 8, TZ_OFFSET_HOURS: 3, TEST_OPEN_ALL: true };
+  window.SUPABASE_URL = "";
+  const DAYS = [
+    { day_number: 1, title: "Зачем вам деньги", lesson: "Короткий первый шаг.", duration_min: 7, audio_url: "", audio_name: "" },
+    { day_number: 2, title: "Откуда тревога о деньгах", lesson: "Спокойный разбор.", duration_min: 8, audio_url: "", audio_name: "" },
+    { day_number: 3, title: "Тело и деньги", lesson: "Как тело реагирует на деньги.", duration_min: 8, audio_url: "", audio_name: "" },
+  ];
+  const TASKS = [
+    { id: "11111111-1111-1111-1111-111111111111", day_number: 1, position: 1, text: "Вспомните первый случай с деньгами." },
+    { id: "22222222-2222-2222-2222-222222222222", day_number: 1, position: 2, text: "Что вы тогда почувствовали?" },
+  ];
+  const tableData = (t) => t === "days" ? { data: DAYS, error: null }
+    : t === "tasks" ? { data: TASKS, error: null }
+    : { data: [], error: null };
+  const builder = (t) => ({
+    select() { return this; },
+    order() { return this; },
+    eq() { return this; },
+    upsert() { return Promise.resolve({ data: null, error: null }); },
+    insert() { return Promise.resolve({ data: null, error: null }); },
+    delete() { return this; },
+    in() { return Promise.resolve({ data: [], error: null }); },
+    maybeSingle() { return Promise.resolve(t === "profiles" ? { data: { name: "Мария", email: "maria@mail.com" }, error: null } : { data: null, error: null }); },
+    single() { return Promise.resolve({ data: null, error: null }); },
+    then(res, rej) { return Promise.resolve(tableData(t)).then(res, rej); },
+  });
+  window.sb = {
+    auth: {
+      getSession() { return Promise.resolve({ data: { session: { user: { id: "u1", email: "maria@mail.com", user_metadata: { name: "Мария" } }, access_token: "t" } } }); },
+      onAuthStateChange() { return { data: { subscription: { unsubscribe() {} } } }; },
+      signOut() { return Promise.resolve(); },
+    },
+    from(t) { return builder(t); },
+    rpc() { return Promise.resolve({ data: false, error: null }); },
+    storage: { from() { return { createSignedUrl() { return Promise.resolve({ data: { signedUrl: "" }, error: null }); } }; } },
+  };
+</script>
+<script src="../app.js"></script>
+</body>
+</html>
