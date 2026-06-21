@@ -219,6 +219,18 @@ const Ico = {
   drop: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3.2s6 5.7 6 9.8a6 6 0 01-12 0c0-4.1 6-9.8 6-9.8z"/></svg>,
   chart: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 21h18"/><rect x="5" y="11" width="3.2" height="7" rx="1"/><rect x="10.4" y="6.5" width="3.2" height="11.5" rx="1"/><rect x="15.8" y="13.5" width="3.2" height="4.5" rx="1"/></svg>,
   info: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>,
+  // единый набор тонких иконок для раздела «Инструкция» (одна линия, stroke 1.7, 24px)
+  compass: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="8.5"/><path d="M14.9 9.1l-1.7 4.1-4.1 1.7 1.7-4.1z"/></svg>,
+  login: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3"/><path d="M10 16l4-4-4-4"/><path d="M14 12H4"/></svg>,
+  grid: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="4" width="7" height="7" rx="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.6"/></svg>,
+  calday: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/><path d="M3.5 9.5h17"/><path d="M8 3.3v3M16 3.3v3"/><path d="M8.3 14.4l2.4 2.4 4.8-4.8"/></svg>,
+  phones: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M4 13.5v-1.5a8 8 0 0116 0v1.5"/><rect x="3" y="13" width="4.2" height="6.5" rx="1.6"/><rect x="16.8" y="13" width="4.2" height="6.5" rx="1.6"/></svg>,
+  doc: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M6.5 3.5h6.5l4.5 4.5V20a1 1 0 01-1 1H6.5a1 1 0 01-1-1V4.5a1 1 0 011-1z"/><path d="M13 3.5V9h5"/><path d="M9 13.5h6M9 16.5h4"/></svg>,
+  checksq: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="4" y="4" width="16" height="16" rx="3.4"/><path d="M8.4 12.2l2.5 2.5 4.7-5"/></svg>,
+  pen: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14.3 5.6l4.1 4.1"/><path d="M4 20l1.1-4.2L16 5a2.05 2.05 0 012.9 2.9L8 18.9 4 20z"/></svg>,
+  sunrise: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 19h18"/><path d="M7.5 19a4.5 4.5 0 019 0"/><path d="M12 3.5v4.5"/><path d="M4.6 11.2l1.5 1.5M19.4 11.2l-1.5 1.5"/></svg>,
+  shield: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3.4l7 3v4.8c0 4.2-2.9 7.7-7 9.1-4.1-1.4-7-4.9-7-9.1V6.4z"/><path d="M9 12l2 2 4-4"/></svg>,
+  help: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 014.9.7c0 1.7-2.5 2.2-2.5 3.9"/><path d="M12 16.6h.01"/></svg>,
 };
 
 /* ========================= ProgressRing ========================= */
@@ -790,16 +802,90 @@ function Diary({ days, onOpenDay }) {
 function GuideShot({ src, cap }) {
   const [failed, setFailed] = useState(false);
   return (
-    <figure className="gs-shot">
+    <figure className="gd-shot">
       {failed
-        ? <div className="gs-frame">Сюда вставится картинка экрана</div>
+        ? <div className="gd-frame">Сюда вставится картинка экрана</div>
         : <img src={src} alt={cap || ""} loading="lazy" onError={() => setFailed(true)} />}
       {cap && <figcaption>{cap}</figcaption>}
     </figure>
   );
 }
 
+// Шаги курса. icon = ключ из Ico, body = абзацы, list = пункты, shot = картинка.
+const GUIDE_STEPS = [
+  { icon: "login", title: "Как сюда войти",
+    body: [
+      "Вы заходите по своей почте и паролю. Это та самая почта, по которой вам открыли доступ. Впишите её, впишите пароль и нажмите «Войти».",
+      "Заходить каждый раз заново не нужно. Программа вас запомнит. Закрыли страницу, открыли снова, и вы по-прежнему внутри.",
+      "Зайти можно и с телефона, и с компьютера. Всё работает одинаково.",
+    ] },
+  { icon: "grid", title: "Меню и разделы",
+    body: ["Внизу экрана есть полоска с кнопками. Это меню, через него вы переходите между разделами. На компьютере это же меню стоит слева.", "Разделов четыре:"],
+    list: [
+      ["Мой прогресс.", " Главная страница. Тут видно, сколько дней вы уже прошли и какой день у вас сегодня."],
+      ["Карта дней.", " Все 17 дней по порядку. Видно, что пройдено, что сегодня, а что пока закрыто."],
+      ["Дневник.", " Сюда сами собираются все ваши ответы и заметки за все дни. В одном месте."],
+      ["Инструкция.", " Эта страница. Сюда можно вернуться в любой момент, если что-то забылось."],
+    ],
+    shot: { src: "guide-img/step-menu.png", cap: "Меню внизу экрана. Сейчас вы в «Инструкции»." } },
+  { icon: "calday", title: "Откройте сегодняшний день",
+    body: ["Откройте раздел «Мой прогресс». Там есть карточка сегодняшнего дня. Нажмите на ней кнопку «Открыть день».", "Откроется страница урока. С неё и начинается ваш день."],
+    shot: { src: "guide-img/step-open-day.png", cap: "Кнопка «Открыть день» на главной странице." } },
+  { icon: "phones", title: "Послушайте аудио",
+    body: [
+      "Наверху страницы дня стоит проигрыватель. Нажмите круглую кнопку с треугольником, и аудио начнёт играть. Чтобы поставить на паузу, нажмите ту же кнопку ещё раз.",
+      "Слушать удобнее в наушниках или просто включить погромче.",
+      "Аудио не включилось с первого раза? Не переживайте. Обновите страницу и нажмите кнопку снова. Чтобы обновить, потяните страницу пальцем сверху вниз, либо нажмите кружок со стрелкой наверху браузера.",
+    ],
+    shot: { src: "guide-img/step-audio.png", cap: "Нажмите круглую кнопку, чтобы включить урок." } },
+  { icon: "doc", title: "Прочитайте текст урока",
+    body: ["Под проигрывателем идёт текст урока. Прочитайте его спокойно. Можно до аудио, можно после, как вам удобнее."] },
+  { icon: "checksq", title: "Выполните задания",
+    body: [
+      "Ниже текста идут задания дня. Их немного. Под каждым заданием есть поле, куда можно вписать ответ.",
+      "Впишите ответ своими словами и нажмите кнопку «Готово». Задание отметится зелёной галочкой.",
+      "Ответ сохраняется сам. Отдельно сохранять ничего не надо. Захотите поправить ответ, нажмите «Изменить».",
+    ],
+    shot: { src: "guide-img/step-task.png", cap: "Впишите ответ и нажмите «Готово»." } },
+  { icon: "pen", title: "Запишите мысль в дневник",
+    body: [
+      "В самом низу дня есть «Заметка дня». Это место для короткой мысли или вывода. Захотелось что-то записать, впишите.",
+      "Заметка сохраняется сама, как только вы нажмёте в другое место. Потом все заметки и ответы соберутся в разделе «Дневник».",
+    ],
+    shot: { src: "guide-img/step-diary.png", cap: "Так выглядит ваш дневник. Записи собираются сами." } },
+  { icon: "sunrise", title: "Завтра вернитесь за новым днём",
+    body: [
+      "Дни открываются по одному, по расписанию. Каждое утро открывается следующий день. Поэтому завтрашний день пока закрыт. На нём виден замочек и подпись, когда он откроется.",
+      "Это сделано специально. Так у вас каждый день один спокойный шаг, без спешки.",
+      "Завтра просто зайдите снова и откройте новый день. Пропустили день, ничего страшного. Он не пропадёт, вы спокойно вернётесь к нему позже.",
+    ],
+    shot: { src: "guide-img/step-map.png", cap: "Замочек значит, что день ещё не открылся. Под ним написано, когда откроется." } },
+];
+
+const GUIDE_FAQ = [
+  { q: "День не открывается", a: "Дни открываются по одному, каждое утро. Если день закрыт, на нём замочек и время открытия. Дождитесь этого времени и обновите страницу." },
+  { q: "Аудио не играет", a: "Обновите страницу и нажмите кнопку снова. Проверьте, что звук на телефоне включён и громкость поднята. Чаще всего помогает именно обновление страницы." },
+  { q: "Как вернуться завтра", a: "Просто откройте программу снова с того же телефона или компьютера. Вы сразу окажетесь внутри. Зайдите в «Мой прогресс» и откройте новый день." },
+  { q: "Я вышел, как войти обратно", a: "Впишите свою почту и пароль и нажмите «Войти». Это та же почта, по которой вам открыли доступ." },
+  { q: "Можно проходить с телефона и с компьютера", a: "Да. Программа работает и там, и там. Прогресс общий, он привязан к вашей почте, а не к устройству." },
+  { q: "Я случайно отметил задание", a: "Ничего страшного. Нажмите «Изменить» под ответом, поправьте и снова нажмите «Готово»." },
+];
+
+// один вопрос-ответ, раскрывается по нажатию (крупная зона нажатия)
+function FaqItem({ q, a, open, onToggle }) {
+  return (
+    <div className={"gd-faq" + (open ? " open" : "")}>
+      <button className="gd-faq-q" onClick={onToggle} aria-expanded={open}>
+        <span className="gd-faq-text">{q}</span>
+        <span className="gd-faq-chev"><Ico.chev /></span>
+      </button>
+      <div className="gd-faq-wrap"><div className="gd-faq-a">{a}</div></div>
+    </div>
+  );
+}
+
 function Guide() {
+  const [openFaq, setOpenFaq] = useState(0);   // первый вопрос открыт, чтобы было понятно, как это работает
   return (
     <div className="page guide-col">
       <div className="head-row">
@@ -811,127 +897,68 @@ function Guide() {
       </div>
 
       {/* что это за платформа */}
-      <div className="card guide-intro">
-        <div className="gi-title">С чего начать</div>
-        <p>«Протокол денег» это ваша программа на 17 дней. Каждый день мы открываем для вас новый небольшой урок.</p>
-        <p>Вы слушаете короткое аудио, читаете текст, выполняете простое задание и записываете пару мыслей. Всё занимает минут двадцать. Спешить никуда не нужно.</p>
-        <p>Ниже всё показано по шагам, с картинками. Эта страница всегда тут, в любой момент можно вернуться и перечитать.</p>
-      </div>
-
-      {/* Шаг 1 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">1</div><div className="gs-title">Как сюда войти</div></div>
-        <div className="gs-text">
-          <p>Вы заходите по своей почте и паролю. Это та самая почта, по которой вам открыли доступ. Впишите её, впишите пароль и нажмите «Войти».</p>
-          <p>Заходить каждый раз заново не нужно. Программа вас запомнит. Закрыли страницу, открыли снова, и вы по-прежнему внутри.</p>
-          <p>Зайти можно и с телефона, и с компьютера. Всё работает одинаково.</p>
+      <div className="card gd-lead">
+        <div className="gd-lead-head">
+          <div className="gd-ico"><Ico.compass /></div>
+          <h2 className="gd-lead-title">С чего начать</h2>
+        </div>
+        <div className="gd-body">
+          <p>«Протокол денег» это ваша программа на 17 дней. Каждый день мы открываем для вас новый небольшой урок.</p>
+          <p>Вы слушаете короткое аудио, читаете текст, выполняете простое задание и записываете пару мыслей. Всё занимает минут двадцать. Спешить никуда не нужно.</p>
+          <p>Ниже всё показано по шагам, с картинками. Эта страница всегда тут, в любой момент можно вернуться и перечитать.</p>
         </div>
       </div>
 
-      {/* Шаг 2 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">2</div><div className="gs-title">Меню и разделы</div></div>
-        <div className="gs-text">
-          <p>Внизу экрана есть полоска с кнопками. Это меню, через него вы переходите между разделами. На компьютере это же меню стоит слева.</p>
-          <p>Разделов четыре:</p>
-          <ul className="gs-list">
-            <li><b>Мой прогресс.</b> Главная страница. Тут видно, сколько дней вы уже прошли и какой день у вас сегодня.</li>
-            <li><b>Карта дней.</b> Все 17 дней по порядку. Видно, что пройдено, что сегодня, а что пока закрыто.</li>
-            <li><b>Дневник.</b> Сюда сами собираются все ваши ответы и заметки за все дни. В одном месте.</li>
-            <li><b>Инструкция.</b> Эта страница. Сюда можно вернуться в любой момент, если что-то забылось.</li>
-          </ul>
-        </div>
-        <GuideShot src="guide-img/step-menu.png" cap="Меню внизу экрана. Сейчас вы в «Инструкции»." />
-      </div>
-
-      {/* Шаг 3 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">3</div><div className="gs-title">Откройте сегодняшний день</div></div>
-        <div className="gs-text">
-          <p>Откройте раздел «Мой прогресс». Там есть карточка сегодняшнего дня. Нажмите на ней кнопку «Открыть день».</p>
-          <p>Откроется страница урока. С неё и начинается ваш день.</p>
-        </div>
-        <GuideShot src="guide-img/step-open-day.png" cap="Кнопка «Открыть день» на главной странице." />
-      </div>
-
-      {/* Шаг 4 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">4</div><div className="gs-title">Послушайте аудио</div></div>
-        <div className="gs-text">
-          <p>Наверху страницы дня стоит проигрыватель. Нажмите круглую кнопку с треугольником, и аудио начнёт играть. Чтобы поставить на паузу, нажмите ту же кнопку ещё раз.</p>
-          <p>Слушать удобнее в наушниках или просто включить погромче.</p>
-          <p>Аудио не включилось с первого раза? Не переживайте. Обновите страницу и нажмите кнопку снова. Чтобы обновить, потяните страницу пальцем сверху вниз, либо нажмите кружок со стрелкой наверху браузера.</p>
-        </div>
-        <GuideShot src="guide-img/step-audio.png" cap="Нажмите круглую кнопку, чтобы включить урок." />
-      </div>
-
-      {/* Шаг 5 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">5</div><div className="gs-title">Прочитайте текст урока</div></div>
-        <div className="gs-text">
-          <p>Под проигрывателем идёт текст урока. Прочитайте его спокойно. Можно до аудио, можно после, как вам удобнее.</p>
-        </div>
-      </div>
-
-      {/* Шаг 6 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">6</div><div className="gs-title">Выполните задания</div></div>
-        <div className="gs-text">
-          <p>Ниже текста идут задания дня. Их немного. Под каждым заданием есть поле, куда можно вписать ответ.</p>
-          <p>Впишите ответ своими словами и нажмите кнопку «Готово». Задание отметится зелёной галочкой.</p>
-          <p>Ответ сохраняется сам. Отдельно сохранять ничего не надо. Захотите поправить ответ, нажмите «Изменить».</p>
-        </div>
-        <GuideShot src="guide-img/step-task.png" cap="Впишите ответ и нажмите «Готово»." />
-      </div>
-
-      {/* Шаг 7 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">7</div><div className="gs-title">Запишите мысль в дневник</div></div>
-        <div className="gs-text">
-          <p>В самом низу дня есть «Заметка дня». Это место для короткой мысли или вывода. Захотелось что-то записать, впишите.</p>
-          <p>Заметка сохраняется сама, как только вы нажмёте в другое место. Потом все заметки и ответы соберутся в разделе «Дневник».</p>
-        </div>
-        <GuideShot src="guide-img/step-diary.png" cap="Так выглядит ваш дневник. Записи собираются сами." />
-      </div>
-
-      {/* Шаг 8 */}
-      <div className="card guide-step">
-        <div className="gs-head"><div className="gs-num">8</div><div className="gs-title">Завтра вернитесь за новым днём</div></div>
-        <div className="gs-text">
-          <p>Дни открываются по одному, по расписанию. Каждое утро открывается следующий день. Поэтому завтрашний день пока закрыт. На нём виден замочек и подпись, когда он откроется.</p>
-          <p>Это сделано специально. Так у вас каждый день один спокойный шаг, без спешки.</p>
-          <p>Завтра просто зайдите снова и откройте новый день. Пропустили день, ничего страшного. Он не пропадёт, вы спокойно вернётесь к нему позже.</p>
-        </div>
-        <GuideShot src="guide-img/step-map.png" cap="Замочек значит, что день ещё не открылся. Под ним написано, когда откроется." />
-      </div>
+      {/* шаги */}
+      {GUIDE_STEPS.map((s, i) => {
+        const Icon = Ico[s.icon];
+        return (
+          <div key={i} className="card gd-step">
+            <div className="gd-step-head">
+              <div className="gd-num">{i + 1}</div>
+              <h2 className="gd-step-title">{s.title}</h2>
+              <div className="gd-ico"><Icon /></div>
+            </div>
+            <div className="gd-body">
+              {s.body.map((p, j) => <p key={j}>{p}</p>)}
+              {s.list && (
+                <ul className="gd-list">
+                  {s.list.map((li, j) => <li key={j}><b>{li[0]}</b>{li[1]}</li>)}
+                </ul>
+              )}
+            </div>
+            {s.shot && <GuideShot src={s.shot.src} cap={s.shot.cap} />}
+          </div>
+        );
+      })}
 
       {/* спокойствие */}
-      <div className="card guide-calm">
-        <div className="gc-title">Ничего не потеряется</div>
-        <p>Всё, что вы делаете, сохраняется само. Ответы, заметки, пройденные дни. Можно закрыть страницу, выключить телефон, вернуться через день. Вы окажетесь там же, где остановились.</p>
+      <div className="card gd-calm">
+        <div className="gd-lead-head">
+          <div className="gd-ico gd-ico-good"><Ico.shield /></div>
+          <h2 className="gd-lead-title">Ничего не потеряется</h2>
+        </div>
+        <div className="gd-body">
+          <p>Всё, что вы делаете, сохраняется само. Ответы, заметки, пройденные дни. Можно закрыть страницу, выключить телефон, вернуться через день. Вы окажетесь там же, где остановились.</p>
+        </div>
       </div>
 
       {/* частые вопросы */}
-      <div className="guide-faq-head">
-        <div className="eyebrow">Если что-то непонятно</div>
-        <h2>Частые вопросы</h2>
+      <div className="gd-faq-head">
+        <div className="gd-ico"><Ico.help /></div>
+        <div>
+          <div className="eyebrow">Если что-то непонятно</div>
+          <h2>Частые вопросы</h2>
+        </div>
+      </div>
+      <div className="gd-faq-list">
+        {GUIDE_FAQ.map((it, i) => (
+          <FaqItem key={i} q={it.q} a={it.a} open={openFaq === i}
+            onToggle={() => setOpenFaq((cur) => (cur === i ? -1 : i))} />
+        ))}
       </div>
 
-      {[
-        { q: "День не открывается", a: "Дни открываются по одному, каждое утро. Если день закрыт, на нём замочек и время открытия. Дождитесь этого времени и обновите страницу." },
-        { q: "Аудио не играет", a: "Обновите страницу и нажмите кнопку снова. Проверьте, что звук на телефоне включён и громкость поднята. Чаще всего помогает именно обновление страницы." },
-        { q: "Как вернуться завтра", a: "Просто откройте программу снова с того же телефона или компьютера. Вы сразу окажетесь внутри. Зайдите в «Мой прогресс» и откройте новый день." },
-        { q: "Я вышел, как войти обратно", a: "Впишите свою почту и пароль и нажмите «Войти». Это та же почта, по которой вам открыли доступ." },
-        { q: "Можно проходить с телефона и с компьютера", a: "Да. Программа работает и там, и там. Прогресс общий, он привязан к вашей почте, а не к устройству." },
-        { q: "Я случайно отметил задание", a: "Ничего страшного. Нажмите «Изменить» под ответом, поправьте и снова нажмите «Готово»." },
-      ].map((it, i) => (
-        <div key={i} className="card faq-item">
-          <div className="faq-q"><span className="faq-mark">?</span>{it.q}</div>
-          <div className="faq-a">{it.a}</div>
-        </div>
-      ))}
-
-      <div className="guide-end muted">Спокойно идите по одному дню. У вас всё получится.</div>
+      <div className="gd-end">Спокойно идите по одному дню. У вас всё получится.</div>
     </div>
   );
 }

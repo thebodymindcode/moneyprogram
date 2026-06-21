@@ -787,87 +787,81 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
   .st-who { padding-right: 92px; }
 }
 
+
 /* ============================================================
-   Инструкция (раздел помощи)
-   Крупный текст, много воздуха, шаги карточками с номером.
+   Инструкция (раздел помощи), премиум
+   Крупные бейджи-номера, единые иконки, аккордеон вопросов,
+   много воздуха, крупный текст под возрастную аудиторию.
    ============================================================ */
 .guide-col { max-width: 720px; }
-.guide-col p { margin: 0 0 12px; font-size: 16.5px; line-height: 1.62; color: #36424f; }
-.guide-col p:last-child { margin-bottom: 0; }
+.guide-col .card + .card { margin-top: 18px; }
 
-/* вводная карточка */
-.guide-intro { padding: 24px; }
-.guide-intro .gi-title { font-size: 20px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 12px; }
+.gd-body p { margin: 0 0 12px; font-size: 16.5px; line-height: 1.62; color: #36424f; }
+.gd-body p:last-child { margin-bottom: 0; }
+
+/* единая иконка-чип */
+.gd-ico {
+  width: 46px; height: 46px; flex: none; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); border: 1px solid var(--line);
+  box-shadow: var(--bevel); color: var(--steel);
+}
+.gd-ico svg { width: 24px; height: 24px; }
+.gd-ico-good { color: #2f9e78; border-color: #cfe6da; background: linear-gradient(180deg, #f3fbf7, #eaf5ef); }
+
+/* вводная и «спокойствие»: иконка + заголовок */
+.gd-lead, .gd-calm { padding: 24px; }
+.gd-lead-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.gd-lead-title { flex: 1; min-width: 0; font-size: 20px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; margin: 0; }
+.gd-calm { border: 1px solid #cfe6da; background: linear-gradient(180deg, #f4fbf8 0%, #eaf5ef 100%); }
+.gd-calm .gd-lead-title { color: #226b50; }
+.gd-calm .gd-body p { color: #2f5e4b; }
 
 /* карточка шага */
-.guide-step { padding: 22px; }
-.gs-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-.gs-num {
-  width: 48px; height: 48px; flex: none; border-radius: 15px;
+.gd-step { padding: 22px; }
+.gd-step-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.gd-num {
+  width: 56px; height: 56px; flex: none; border-radius: 17px;
   background: linear-gradient(150deg, #3b4a5d 0%, var(--steel) 58%, #1d2733 100%);
-  color: #fff; font-size: 22px; font-weight: 800;
+  color: #fff; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums;
   display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.18);
+  box-shadow: 0 8px 20px rgba(28,38,52,.28), inset 0 1px 0 rgba(255,255,255,.2);
 }
-.gs-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
-.gs-text { margin-bottom: 2px; }
-.gs-list { margin: 4px 0 0; padding-left: 0; list-style: none; }
-.gs-list li {
-  position: relative; padding-left: 26px; margin-bottom: 12px;
-  font-size: 16px; line-height: 1.55; color: #36424f;
-}
-.gs-list li:last-child { margin-bottom: 0; }
-.gs-list li::before {
-  content: ""; position: absolute; left: 4px; top: 9px;
-  width: 8px; height: 8px; border-radius: 999px;
-  background: linear-gradient(150deg, var(--steel-2), var(--steel));
-}
-.gs-list b { color: var(--steel); font-weight: 800; }
+.gd-step-title { flex: 1; min-width: 0; font-size: 19.5px; font-weight: 800; letter-spacing: -.02em; line-height: 1.22; margin: 0; }
+
+/* список разделов */
+.gd-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.gd-list li { position: relative; padding-left: 24px; margin-bottom: 12px; font-size: 16px; line-height: 1.55; color: #36424f; }
+.gd-list li:last-child { margin-bottom: 0; }
+.gd-list li::before { content: ""; position: absolute; left: 3px; top: 9px; width: 8px; height: 8px; border-radius: 999px; background: linear-gradient(150deg, var(--steel-2), var(--steel)); }
+.gd-list b { color: var(--steel); font-weight: 800; }
 
 /* картинка-экран */
-.gs-shot { margin: 16px 0 0; }
-.gs-shot img {
-  display: block; width: 100%; height: auto;
-  border-radius: 16px; border: 1px solid var(--line);
-  box-shadow: var(--shadow); background: #f4f6f9;
-}
-.gs-shot figcaption { margin-top: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-faint); text-align: center; }
-.gs-frame {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 200px; border-radius: 16px; padding: 20px; text-align: center;
-  border: 2px dashed var(--silver-3); color: var(--ink-faint);
-  font-size: 14.5px; font-weight: 600; background: var(--surface-2);
-}
-
-/* карточка «ничего не потеряется» */
-.guide-calm {
-  padding: 24px; border: 1px solid #cfe6da;
-  background: linear-gradient(180deg, #f3fbf7 0%, #eaf5ef 100%);
-}
-.guide-calm .gc-title { font-size: 19px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 10px; color: #226b50; }
-.guide-calm p { color: #2f5e4b; margin: 0; }
+.gd-shot { margin: 18px 0 0; }
+.gd-shot img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--line); box-shadow: var(--shadow); background: #f4f6f9; }
+.gd-shot figcaption { margin-top: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-faint); text-align: center; }
+.gd-frame { display: flex; align-items: center; justify-content: center; min-height: 200px; border-radius: 16px; padding: 20px; text-align: center; border: 2px dashed var(--silver-3); color: var(--ink-faint); font-size: 14.5px; font-weight: 600; background: var(--surface-2); }
 
 /* частые вопросы */
-.guide-faq-head { margin: 30px 0 14px; }
-.guide-faq-head h2 { font-size: 22px; margin-top: 4px; }
-.faq-item { padding: 18px 20px; }
-.faq-q {
-  display: flex; align-items: center; gap: 12px;
-  font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3;
-}
-.faq-mark {
-  width: 28px; height: 28px; flex: none; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--bevel);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 800; color: var(--steel);
-}
-.faq-a { margin: 10px 0 0; padding-left: 40px; font-size: 15.5px; line-height: 1.6; color: #4a5563; }
+.gd-faq-head { display: flex; align-items: center; gap: 14px; margin: 36px 0 16px; }
+.gd-faq-head h2 { font-size: 22px; margin-top: 3px; }
+.gd-faq-list { display: flex; flex-direction: column; gap: 12px; }
+.gd-faq { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow), var(--bevel); overflow: hidden; }
+.gd-faq-q { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 62px; padding: 17px 19px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; }
+.gd-faq-text { flex: 1; min-width: 0; font-size: 16.5px; font-weight: 800; line-height: 1.32; letter-spacing: -.01em; color: var(--ink); }
+.gd-faq-chev { flex: none; display: flex; color: var(--ink-faint); transition: transform .25s ease, color .25s ease; }
+.gd-faq-chev svg { width: 22px; height: 22px; }
+.gd-faq.open .gd-faq-chev { transform: rotate(90deg); color: var(--steel); }
+.gd-faq-wrap { max-height: 0; overflow: hidden; transition: max-height .32s ease; }
+.gd-faq.open .gd-faq-wrap { max-height: 400px; }
+.gd-faq-a { padding: 14px 19px 19px; margin: 0 0 0; border-top: 1px solid var(--line-soft); font-size: 15.5px; line-height: 1.6; color: #4a5563; }
 
-.guide-end { margin: 26px 0 4px; text-align: center; font-size: 15px; font-weight: 600; }
+.gd-end { margin: 28px 0 4px; text-align: center; font-size: 15.5px; font-weight: 600; color: var(--ink-soft); }
 
-/* совсем узкий экран: номер шага чуть меньше */
+/* совсем узкий экран */
 @media (max-width: 380px) {
-  .gs-num { width: 42px; height: 42px; font-size: 19px; border-radius: 13px; }
-  .gs-title { font-size: 17.5px; }
-  .faq-a { padding-left: 0; }
+  .gd-num { width: 50px; height: 50px; font-size: 21px; border-radius: 15px; }
+  .gd-ico { width: 42px; height: 42px; }
+  .gd-step-title { font-size: 18px; }
+  .gd-lead-title { font-size: 18.5px; }
 }

@@ -14,3 +14,6 @@ _check/
 
 # Системное
 .DS_Store
+
+# Кадры арт-директорской проверки design-review
+_designreview/
