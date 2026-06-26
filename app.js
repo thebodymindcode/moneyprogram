@@ -1045,9 +1045,13 @@ function Dashboard({
     className: "nt empty-txt"
   }, "\u041F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0432\u043E\u0433\u043E \u0434\u043D\u044F."), React.createElement("div", {
     className: "src"
-  }, reason ? React.createElement(React.Fragment, null, "\u0414\u0435\u043D\u044C 1 ", React.createElement("span", {
+  }, reason ? React.createElement(React.Fragment, null, React.createElement("span", {
+    className: "src-ref"
+  }, "\u0414\u0435\u043D\u044C 1"), React.createElement("span", {
     className: "go"
-  }, "\u043E\u0442\u043A\u0440\u044B\u0442\u044C")) : "Пройди День 1 и впиши свой корень.")), React.createElement("div", {
+  }, "\u043E\u0442\u043A\u0440\u044B\u0442\u044C")) : React.createElement("span", {
+    className: "src-ref"
+  }, "\u041F\u0440\u043E\u0439\u0434\u0438 \u0414\u0435\u043D\u044C 1 \u0438 \u0432\u043F\u0438\u0448\u0438 \u0441\u0432\u043E\u0439 \u043A\u043E\u0440\u0435\u043D\u044C."))), React.createElement("div", {
     className: "card last-note" + (lastNote ? "" : " empty"),
     onClick: onGoDiary
   }, React.createElement("div", {
@@ -1056,7 +1060,9 @@ function Dashboard({
     className: "nt"
   }, lastNote.note), React.createElement("div", {
     className: "src"
-  }, "\u0414\u0435\u043D\u044C ", lastNote.id, ": ", lastNote.title, " ", React.createElement("span", {
+  }, React.createElement("span", {
+    className: "src-ref"
+  }, "\u0414\u0435\u043D\u044C ", lastNote.id, ": ", lastNote.title), React.createElement("span", {
     className: "go"
   }, "\u0432 \u0434\u043D\u0435\u0432\u043D\u0438\u043A"))) : React.createElement(React.Fragment, null, React.createElement("div", {
     className: "nt empty-txt"

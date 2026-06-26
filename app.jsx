@@ -456,7 +456,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           ) : (
             <div className="nt empty-txt">Появится после первого дня.</div>
           )}
-          <div className="src">{reason ? <>День 1 <span className="go">открыть</span></> : "Пройди День 1 и впиши свой корень."}</div>
+          <div className="src">{reason ? <><span className="src-ref">День 1</span><span className="go">открыть</span></> : <span className="src-ref">Пройди День 1 и впиши свой корень.</span>}</div>
         </div>
 
         {/* последняя заметка */}
@@ -465,7 +465,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           {lastNote ? (
             <>
               <div className="nt">{lastNote.note}</div>
-              <div className="src">День {lastNote.id}: {lastNote.title} <span className="go">в дневник</span></div>
+              <div className="src"><span className="src-ref">День {lastNote.id}: {lastNote.title}</span><span className="go">в дневник</span></div>
             </>
           ) : (
             <>
