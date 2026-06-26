@@ -1836,17 +1836,6 @@ const GUIDE_STEPS = [{
   body: ["Вход по той же почте, по которой вам открыли доступ."],
   list: [["Впишите почту и пароль", ", нажмите **«Войти»**."], ["Заходить заново не нужно", ", программа вас запомнит. Закрыли, открыли, вы внутри."], ["Телефон или компьютер", ", без разницы. Прогресс общий, он привязан к почте."]]
 }, {
-  icon: "download",
-  title: "Поставьте иконку на телефон",
-  install: true,
-  body: ["Добавьте «Протокол денег» на главный экран. Появится иконка приложения (зелёный рубль), и программа будет открываться в один тап, без браузера."],
-  list: [["Android.", " Нажмите кнопку ниже, телефон сам предложит установить."], ["Айфон.", " Откройте меню браузера и выберите пункт добавления на экран. Два шага показаны на картинке ниже."]],
-  tip: "Пункт называется по-разному. В **Яндекс Браузере** это «Добавить ярлык на телефон». В **Safari** нажмите «Поделиться», затем «На экран Домой». После этого нажмите «Добавить».",
-  shot: {
-    src: "guide-img/ios-install.png",
-    cap: "Айфон, Яндекс Браузер: меню, затем «Добавить ярлык на телефон», затем «На экран Домой» и «Добавить»."
-  }
-}, {
   icon: "grid",
   title: "Меню и разделы",
   body: ["Внизу экрана полоска с кнопками, это меню. На компьютере оно слева. Разделов четыре:"],
@@ -2019,6 +2008,27 @@ function Guide() {
   }, "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043F\u043E\u0442\u0435\u0440\u044F\u0435\u0442\u0441\u044F")), React.createElement("div", {
     className: "gd-body"
   }, React.createElement("p", null, "\u0412\u0441\u0451, \u0447\u0442\u043E \u0432\u044B \u0434\u0435\u043B\u0430\u0435\u0442\u0435, \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442\u0441\u044F \u0441\u0430\u043C\u043E. \u041E\u0442\u0432\u0435\u0442\u044B, \u0437\u0430\u043C\u0435\u0442\u043A\u0438, \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u043D\u044B\u0435 \u0434\u043D\u0438. \u041C\u043E\u0436\u043D\u043E \u0437\u0430\u043A\u0440\u044B\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443, \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0442\u0435\u043B\u0435\u0444\u043E\u043D, \u0432\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F \u0447\u0435\u0440\u0435\u0437 \u0434\u0435\u043D\u044C. \u0412\u044B \u043E\u043A\u0430\u0436\u0435\u0442\u0435\u0441\u044C \u0442\u0430\u043C \u0436\u0435, \u0433\u0434\u0435 \u043E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u043B\u0438\u0441\u044C."))), React.createElement("div", {
+    className: "card gd-step"
+  }, React.createElement("div", {
+    className: "gd-step-head"
+  }, React.createElement("div", {
+    className: "gd-num"
+  }, React.createElement(Ico.download, null)), React.createElement("h2", {
+    className: "gd-step-title"
+  }, "\u0418\u043A\u043E\u043D\u043A\u0430 \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D, \u043F\u043E \u0436\u0435\u043B\u0430\u043D\u0438\u044E")), React.createElement("div", {
+    className: "gd-body"
+  }, React.createElement("p", null, "\u042D\u0442\u043E \u043D\u0435 \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E. \u041D\u043E \u0435\u0441\u043B\u0438 \u0432\u044B \u043F\u0440\u043E\u0445\u043E\u0434\u0438\u0442\u0435 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0443 \u0441 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430, \u0434\u043B\u044F \u0443\u0434\u043E\u0431\u0441\u0442\u0432\u0430 \u043C\u043E\u0436\u043D\u043E \u043F\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0438\u043A\u043E\u043D\u043A\u0443 \u043D\u0430 \u0433\u043B\u0430\u0432\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D. \u0422\u043E\u0433\u0434\u0430 \xAB\u041F\u0440\u043E\u0442\u043E\u043A\u043E\u043B \u0434\u0435\u043D\u0435\u0433\xBB \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u0432 \u043E\u0434\u0438\u043D \u0442\u0430\u043F, \u043A\u0430\u043A \u043E\u0431\u044B\u0447\u043D\u043E\u0435 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435, \u0430 \u0438\u043A\u043E\u043D\u043A\u043E\u0439 \u0431\u0443\u0434\u0435\u0442 \u0437\u0435\u043B\u0451\u043D\u044B\u0439 \u0440\u0443\u0431\u043B\u044C."), React.createElement("ul", {
+    className: "gd-list"
+  }, React.createElement("li", null, React.createElement("b", null, "Android."), " \u041D\u0430\u0436\u043C\u0438\u0442\u0435 \u043A\u043D\u043E\u043F\u043A\u0443 \u043D\u0438\u0436\u0435, \u0442\u0435\u043B\u0435\u0444\u043E\u043D \u0441\u0430\u043C \u043F\u0440\u0435\u0434\u043B\u043E\u0436\u0438\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C."), React.createElement("li", null, React.createElement("b", null, "\u0410\u0439\u0444\u043E\u043D, Safari."), " \u0414\u0435\u043B\u0430\u0435\u0442\u0441\u044F \u0432\u0440\u0443\u0447\u043D\u0443\u044E, \u0447\u0435\u0442\u044B\u0440\u0435 \u0448\u0430\u0433\u0430 \u043F\u043E\u043A\u0430\u0437\u0430\u043D\u044B \u043D\u0430 \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0435 \u043D\u0438\u0436\u0435.")), React.createElement("div", {
+    className: "gd-tip"
+  }, React.createElement(Ico.info, null), React.createElement("span", null, "\u041E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0435 \u0432 \u0434\u0440\u0443\u0433\u043E\u043C \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435 (\u042F\u043D\u0434\u0435\u043A\u0441, Chrome)? \u041F\u0443\u043D\u043A\u0442 \u043C\u043E\u0436\u0435\u0442 \u043D\u0430\u0437\u044B\u0432\u0430\u0442\u044C\u0441\u044F \xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u044F\u0440\u043B\u044B\u043A \u043D\u0430 \u0442\u0435\u043B\u0435\u0444\u043E\u043D\xBB. \u0421\u043C\u044B\u0441\u043B \u0442\u043E\u0442 \u0436\u0435.")), React.createElement("div", {
+    className: "gd-install"
+  }, React.createElement(InstallButton, {
+    force: true
+  }))), React.createElement(GuideShot, {
+    src: "guide-img/ios-install.png",
+    cap: "\u0410\u0439\u0444\u043E\u043D, Safari: \xAB...\xBB, \u0437\u0430\u0442\u0435\u043C \xAB\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F\xBB, \u043F\u0440\u043E\u043B\u0438\u0441\u0442\u0430\u0442\u044C \u0434\u043E \xAB\u041D\u0430 \u044D\u043A\u0440\u0430\u043D \u0414\u043E\u043C\u043E\u0439\xBB, \u0437\u0430\u0442\u0435\u043C \xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C\xBB."
+  })), React.createElement("div", {
     className: "gd-faq-head"
   }, React.createElement("div", {
     className: "gd-ico"
