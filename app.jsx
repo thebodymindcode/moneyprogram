@@ -785,8 +785,9 @@ function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onCon
       </div>
 
       <div className="card">
-        <div className="eyebrow" style={{ marginBottom: 9 }}>Заметка дня</div>
-        <textarea className="note-area" placeholder="Короткая мысль, вывод или итог дня" defaultValue={day.note} onBlur={(e) => saveNote(e.target.value)} />
+        <div className="eyebrow">Заметка дня</div>
+        <div className="note-hint">Здесь только для тебя. Запиши, что почувствовал и что понял на этом уроке. Без оценок и без «правильно или неправильно».</div>
+        <textarea className="note-area" placeholder="Пара строк: что почувствовал, что понял, что зацепило" defaultValue={day.note} onBlur={(e) => saveNote(e.target.value)} />
         <div className="spacer" />
         {flash ? <span className="saved-flash">✓ Сохранено</span> : <span className="faint" style={{ fontSize: 12.5 }}>Сохраняется при выходе из поля</span>}
       </div>
@@ -801,7 +802,7 @@ function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onCon
           </div>
         : <>
             <button className="btn btn-primary" onClick={onBack}>Сохранить и вернуться</button>
-            <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался. Спешить некуда, пропуск не страшен.</div>
+            <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался. Один спокойный шаг в день, и новая норма закрепляется сама.</div>
           </>}
     </div>
   );

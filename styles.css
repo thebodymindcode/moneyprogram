@@ -483,6 +483,7 @@ button { font-family: inherit; }
 .task .txt { font-size: 14.5px; line-height: 1.4; padding-top: 3px; }
 .task.checked .txt { color: var(--ink-faint); text-decoration: line-through; }
 
+.note-hint { font-size: 13px; color: var(--ink-soft); line-height: 1.5; margin: 7px 0 13px; max-width: 64ch; }
 .note-area {
   width: 100%; font-family: inherit; font-size: 16px; color: var(--ink);
   border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; min-height: 92px; resize: vertical; line-height: 1.5;
