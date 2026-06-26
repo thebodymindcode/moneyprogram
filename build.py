@@ -58,6 +58,11 @@ if html_path.exists():
     new_html = re.sub(r'src="app\.js(?:\?v=[^"]*)?"', f'src="app.js?v={ver}"', html)
     if css_ver:
         new_html = re.sub(r'href="styles\.css(?:\?v=[^"]*)?"', f'href="styles.css?v={css_ver}"', new_html)
+    # версия для appConfig.js (настройки календаря), чтобы прогон/боевой режим не висел в кеше
+    cfg_path = root / "appConfig.js"
+    if cfg_path.exists():
+        cfg_ver = hashlib.md5(cfg_path.read_bytes()).hexdigest()[:8]
+        new_html = re.sub(r'src="appConfig\.js(?:\?v=[^"]*)?"', f'src="appConfig.js?v={cfg_ver}"', new_html)
     if new_html != html:
         html_path.write_text(new_html, encoding="utf-8")
 

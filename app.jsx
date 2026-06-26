@@ -378,13 +378,6 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
   const lastNote = [...days].reverse().find((d) => d.note && d.note.trim());
   const tasksDone = days.reduce((sum, d) => sum + d.tasks.filter((t) => t.done).length, 0);
 
-  // «Твоя причина»: ответ на первое задание Дня 1, иначе заметка Дня 1
-  const day1 = days[0];
-  const reason = (day1 && (
-    (day1.tasks[0] && day1.tasks[0].answer && day1.tasks[0].answer.trim()) ||
-    (day1.note && day1.note.trim())
-  )) || "";
-
   return (
     <div className="page">
       <div className="head-row">
@@ -447,20 +440,8 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           <div className="stage-cap muted">{stage.hint}</div>
         </div>
 
-        {/* твоя причина */}
-        <div className={"card last-note reason-card" + (reason ? "" : " empty")} onClick={() => onOpenDay(0)}>
-          <div className="eyebrow">Твоя причина</div>
-          <div className="block-title">Ради чего ты здесь</div>
-          {reason ? (
-            <div className="nt">{reason}</div>
-          ) : (
-            <div className="nt empty-txt">Появится после первого дня.</div>
-          )}
-          <div className="src">{reason ? <><span className="src-ref">День 1</span><span className="go">открыть</span></> : <span className="src-ref">Пройди День 1 и впиши свой корень.</span>}</div>
-        </div>
-
         {/* последняя заметка */}
-        <div className={"card last-note" + (lastNote ? "" : " empty")} onClick={onGoDiary}>
+        <div className={"card last-note span2" + (lastNote ? "" : " empty")} onClick={onGoDiary}>
           <div className="eyebrow">Последняя заметка</div>
           {lastNote ? (
             <>

@@ -948,8 +948,6 @@ function Dashboard({
   const stage = STAGES[stageIdx];
   const lastNote = [...days].reverse().find(d => d.note && d.note.trim());
   const tasksDone = days.reduce((sum, d) => sum + d.tasks.filter(t => t.done).length, 0);
-  const day1 = days[0];
-  const reason = day1 && (day1.tasks[0] && day1.tasks[0].answer && day1.tasks[0].answer.trim() || day1.note && day1.note.trim()) || "";
   return React.createElement("div", {
     className: "page"
   }, React.createElement("div", {
@@ -1033,26 +1031,7 @@ function Dashboard({
   }))), React.createElement("div", {
     className: "stage-cap muted"
   }, stage.hint)), React.createElement("div", {
-    className: "card last-note reason-card" + (reason ? "" : " empty"),
-    onClick: () => onOpenDay(0)
-  }, React.createElement("div", {
-    className: "eyebrow"
-  }, "\u0422\u0432\u043E\u044F \u043F\u0440\u0438\u0447\u0438\u043D\u0430"), React.createElement("div", {
-    className: "block-title"
-  }, "\u0420\u0430\u0434\u0438 \u0447\u0435\u0433\u043E \u0442\u044B \u0437\u0434\u0435\u0441\u044C"), reason ? React.createElement("div", {
-    className: "nt"
-  }, reason) : React.createElement("div", {
-    className: "nt empty-txt"
-  }, "\u041F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0432\u043E\u0433\u043E \u0434\u043D\u044F."), React.createElement("div", {
-    className: "src"
-  }, reason ? React.createElement(React.Fragment, null, React.createElement("span", {
-    className: "src-ref"
-  }, "\u0414\u0435\u043D\u044C 1"), React.createElement("span", {
-    className: "go"
-  }, "\u043E\u0442\u043A\u0440\u044B\u0442\u044C")) : React.createElement("span", {
-    className: "src-ref"
-  }, "\u041F\u0440\u043E\u0439\u0434\u0438 \u0414\u0435\u043D\u044C 1 \u0438 \u0432\u043F\u0438\u0448\u0438 \u0441\u0432\u043E\u0439 \u043A\u043E\u0440\u0435\u043D\u044C."))), React.createElement("div", {
-    className: "card last-note" + (lastNote ? "" : " empty"),
+    className: "card last-note span2" + (lastNote ? "" : " empty"),
     onClick: onGoDiary
   }, React.createElement("div", {
     className: "eyebrow"
