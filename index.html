@@ -7,6 +7,21 @@
   <title>Протокол денег</title>
   <meta name="description" content="Твоя программа на 17 дней. Старт 1 июля, 20 минут в день." />
 
+  <!-- Иконка приложения и установка на экран (PWA) -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Протокол денег" />
+  <script>
+    // ловим системное приглашение установки (Android/Chrome), кнопка вызовет его в один тап
+    window.__bip = null;
+    window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); window.__bip = e; });
+    window.addEventListener("appinstalled", function () { window.__bip = null; });
+  </script>
+
   <!-- Превью ссылки в мессенджерах (Open Graph + Twitter).
        Дата старта «1 июля» должна совпадать с START_DATE в appConfig.js. -->
   <meta property="og:type" content="website" />
@@ -26,7 +41,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=7fa46591" />
+  <link rel="stylesheet" href="styles.css?v=1562caed" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -37,6 +52,6 @@
   <script src="appConfig.js?v=864bb0dc"></script>
   <script src="supabaseClient.js"></script>
   <!-- app.js собирается из app.jsx скриптом build.py (Babel больше не грузится в браузере) -->
-  <script src="app.js?v=333e9b9e"></script>
+  <script src="app.js?v=4bd7d9d5"></script>
 </body>
 </html>

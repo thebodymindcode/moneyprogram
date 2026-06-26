@@ -523,6 +523,34 @@ button { font-family: inherit; }
 .sc-dot.last { stroke-width: 3; filter: drop-shadow(0 2px 4px rgba(28,38,52,.3)); }
 .sc-x { display: flex; margin-top: 8px; font-size: 11.5px; color: var(--ink-faint); font-weight: 600; }
 
+/* кнопка установки на телефон */
+.install-btn { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%;
+  padding: 13px 14px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-soft); font-weight: 700; font-size: 13.5px; font-family: inherit; cursor: pointer;
+  transition: border-color .15s, color .15s, transform .1s; }
+.install-btn:hover { color: var(--ink); border-color: #cdd5df; }
+.install-btn:active { transform: scale(.98); }
+.install-btn svg { width: 18px; height: 18px; flex: none; }
+.sb-foot .install-btn { margin-bottom: 12px; }
+.only-mobile { display: none; }
+@media (max-width: 899px) { .only-mobile { display: block; } }
+
+/* лист-инструкция установки */
+.sheet-scrim { position: fixed; inset: 0; z-index: 60; background: rgba(16,24,34,.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  display: flex; align-items: flex-end; justify-content: center; animation: fadein .15s; }
+@media (min-width: 560px) { .sheet-scrim { align-items: center; padding: 20px; } }
+.sheet { background: var(--surface); width: 100%; max-width: 440px; border-radius: 22px 22px 0 0; padding: 18px 20px calc(24px + env(safe-area-inset-bottom));
+  box-shadow: 0 -10px 40px rgba(20,30,45,.2); animation: sheetup .22s ease; }
+@media (min-width: 560px) { .sheet { border-radius: 20px; padding-bottom: 24px; } }
+@keyframes sheetup { from { transform: translateY(40px); opacity: .6; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.sheet-grip { width: 40px; height: 4px; border-radius: 999px; background: var(--line); margin: 0 auto 14px; }
+.sheet-title { font-size: 17px; font-weight: 800; margin-bottom: 15px; }
+.sheet-steps { margin: 0 0 18px; padding-left: 20px; display: flex; flex-direction: column; gap: 11px; font-size: 14px; color: var(--ink-soft); line-height: 1.45; }
+.sheet-steps b { color: var(--ink); font-weight: 700; }
+.sheet-ic { display: inline-flex; vertical-align: middle; color: var(--steel); }
+.sheet-ic svg { width: 16px; height: 16px; }
+
 .day-done-card { text-align: center; background: linear-gradient(135deg,#eaf6f0,#dcefe6); border: 1px solid #cfe8dc; }
 .encourage { font-size: 13px; color: var(--ink-soft); margin-top: 14px; text-align: center; }
 

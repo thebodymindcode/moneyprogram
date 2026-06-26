@@ -432,6 +432,34 @@ const Ico = {
   }), React.createElement("path", {
     d: "M5 19h14"
   })),
+  download: p => React.createElement("svg", _extends({
+    viewBox: "0 0 24 24",
+    width: "18",
+    height: "18",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), React.createElement("path", {
+    d: "M12 4v11M8 11l4 4 4-4"
+  }), React.createElement("path", {
+    d: "M5 20h14"
+  })),
+  share: p => React.createElement("svg", _extends({
+    viewBox: "0 0 24 24",
+    width: "16",
+    height: "16",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), React.createElement("path", {
+    d: "M12 3v13M8 7l4-4 4 4"
+  }), React.createElement("path", {
+    d: "M6 12H5a1 1 0 00-1 1v6a1 1 0 001 1h14a1 1 0 001-1v-6a1 1 0 00-1-1h-1"
+  })),
   out: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
     width: "18",
@@ -1185,6 +1213,8 @@ function Dashboard({
   }, tasksDone), React.createElement("div", {
     className: "k"
   }, "\u0437\u0430\u0434\u0430\u043D\u0438\u0439 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D\u043E")))), React.createElement("div", {
+    className: "span2 only-mobile"
+  }, React.createElement(InstallButton, null)), React.createElement("div", {
     className: "span2"
   }, React.createElement("div", {
     className: "head-row",
@@ -2883,6 +2913,62 @@ const NAV = [{
   adminOnly: true
 }];
 const navItems = isAdmin => NAV.filter(it => !it.adminOnly || isAdmin);
+function InstallButton() {
+  const [show, setShow] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => {
+    const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    if (standalone) return;
+    setIos(/iphone|ipad|ipod/i.test(navigator.userAgent || ""));
+    setShow(true);
+  }, []);
+  if (!show) return null;
+  const click = async () => {
+    if (window.__bip) {
+      window.__bip.prompt();
+      try {
+        await window.__bip.userChoice;
+      } catch (e) {}
+      window.__bip = null;
+      setShow(false);
+    } else {
+      setSheet(true);
+    }
+  };
+  return React.createElement(React.Fragment, null, React.createElement("button", {
+    className: "install-btn",
+    onClick: click
+  }, React.createElement(Ico.download, null), " \u0418\u043A\u043E\u043D\u043A\u0430 \u043D\u0430 \u044D\u043A\u0440\u0430\u043D \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430"), sheet && React.createElement(InstallSheet, {
+    ios: ios,
+    onClose: () => setSheet(false)
+  }));
+}
+function InstallSheet({
+  ios,
+  onClose
+}) {
+  return React.createElement("div", {
+    className: "sheet-scrim",
+    onClick: onClose
+  }, React.createElement("div", {
+    className: "sheet",
+    onClick: e => e.stopPropagation()
+  }, React.createElement("div", {
+    className: "sheet-grip"
+  }), React.createElement("div", {
+    className: "sheet-title"
+  }, "\u0418\u043A\u043E\u043D\u043A\u0430 \u043D\u0430 \u044D\u043A\u0440\u0430\u043D \u0442\u0435\u043B\u0435\u0444\u043E\u043D\u0430"), ios ? React.createElement("ol", {
+    className: "sheet-steps"
+  }, React.createElement("li", null, "\u041D\u0430\u0436\u043C\u0438 ", React.createElement("b", null, "\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F"), " ", React.createElement("span", {
+    className: "sheet-ic"
+  }, React.createElement(Ico.share, null)), " \u0432\u043D\u0438\u0437\u0443 Safari."), React.createElement("li", null, "\u041F\u0440\u043E\u043B\u0438\u0441\u0442\u0430\u0439 \u0438 \u0432\u044B\u0431\u0435\u0440\u0438 ", React.createElement("b", null, "\xAB\u041D\u0430 \u044D\u043A\u0440\u0430\u043D \u201E\u0414\u043E\u043C\u043E\u0439\"\xBB"), "."), React.createElement("li", null, "\u041D\u0430\u0436\u043C\u0438 ", React.createElement("b", null, "\xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C\xBB"), " \u0441\u043F\u0440\u0430\u0432\u0430 \u0441\u0432\u0435\u0440\u0445\u0443.")) : React.createElement("ol", {
+    className: "sheet-steps"
+  }, React.createElement("li", null, "\u041E\u0442\u043A\u0440\u043E\u0439 \u043C\u0435\u043D\u044E \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 ", React.createElement("b", null, "\u22EE"), "."), React.createElement("li", null, "\u0412\u044B\u0431\u0435\u0440\u0438 ", React.createElement("b", null, "\xAB\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435\xBB"), " \u0438\u043B\u0438 ", React.createElement("b", null, "\xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u0430 \u0433\u043B\u0430\u0432\u043D\u044B\u0439 \u044D\u043A\u0440\u0430\u043D\xBB"), "."), React.createElement("li", null, "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438, \u0438\u043A\u043E\u043D\u043A\u0430 \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u043D\u0430 \u044D\u043A\u0440\u0430\u043D\u0435.")), React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: onClose
+  }, "\u041F\u043E\u043D\u044F\u0442\u043D\u043E")));
+}
 function Sidebar({
   tab,
   setTab,
@@ -2911,7 +2997,7 @@ function Sidebar({
     onClick: () => setTab(it.k)
   }, React.createElement(it.icon, null), " ", it.label))), React.createElement("div", {
     className: "sb-foot"
-  }, React.createElement("div", {
+  }, React.createElement(InstallButton, null), React.createElement("div", {
     className: "sb-user"
   }, React.createElement("div", {
     className: "sb-ava"

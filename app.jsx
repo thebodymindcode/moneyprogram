@@ -235,6 +235,8 @@ const Ico = {
   wave: (p) => <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M4 12h2M9 8v8M14 5v14M19 9v6"/></svg>,
   speed: (p) => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 21a9 9 0 1 0-9-9"/><path d="M12 12l4-3.5"/><path d="M3 12H1.5M5 7l-1-1"/></svg>,
   upload: (p) => <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 16V5M8 9l4-4 4 4"/><path d="M5 19h14"/></svg>,
+  download: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 4v11M8 11l4 4 4-4"/><path d="M5 20h14"/></svg>,
+  share: (p) => <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3v13M8 7l4-4 4 4"/><path d="M6 12H5a1 1 0 00-1 1v6a1 1 0 001 1h14a1 1 0 001-1v-6a1 1 0 00-1-1h-1"/></svg>,
   out: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 7V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2h6a2 2 0 002-2v-2"/><path d="M18 15l3-3-3-3M21 12H9"/></svg>,
   book: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 4h11a2 2 0 012 2v14H7a2 2 0 01-2-2z"/><path d="M5 4a2 2 0 00-2 2v12a2 2 0 002 2"/><path d="M9 8h6M9 12h6"/></svg>,
   mind: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 4.5a3 3 0 00-3 3v9a3 3 0 003 3"/><path d="M12 4.5a3 3 0 013 3v9a3 3 0 01-3 3"/><path d="M9 8.5H7.5a2 2 0 000 4H9M15 8.5h1.5a2 2 0 010 4H15"/></svg>,
@@ -525,6 +527,9 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
             <div className="stat"><div className="v">{tasksDone}</div><div className="k">заданий выполнено</div></div>
           </div>
         </div>
+
+        {/* установка на телефон, видно на мобильном */}
+        <div className="span2 only-mobile"><InstallButton /></div>
 
         {/* мини-маршрут */}
         <div className="span2">
@@ -1642,6 +1647,58 @@ const NAV = [
 // видимые пункты меню: помеченные adminOnly видны только админам
 const navItems = (isAdmin) => NAV.filter((it) => !it.adminOnly || isAdmin);
 
+/* кнопка «иконка на экран телефона»: Android ставит в один тап, iPhone показывает инструкцию */
+function InstallButton() {
+  const [show, setShow] = useState(false);
+  const [ios, setIos] = useState(false);
+  const [sheet, setSheet] = useState(false);
+  useEffect(() => {
+    const standalone = (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone;
+    if (standalone) return;                                 // уже установлено, кнопку не показываем
+    setIos(/iphone|ipad|ipod/i.test(navigator.userAgent || ""));
+    setShow(true);
+  }, []);
+  if (!show) return null;
+  const click = async () => {
+    if (window.__bip) {                                     // Android/Chrome: системное окно установки
+      window.__bip.prompt();
+      try { await window.__bip.userChoice; } catch (e) {}
+      window.__bip = null; setShow(false);
+    } else { setSheet(true); }                              // iPhone и прочие: показываем инструкцию
+  };
+  return (
+    <>
+      <button className="install-btn" onClick={click}><Ico.download /> Иконка на экран телефона</button>
+      {sheet && <InstallSheet ios={ios} onClose={() => setSheet(false)} />}
+    </>
+  );
+}
+
+function InstallSheet({ ios, onClose }) {
+  return (
+    <div className="sheet-scrim" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grip" />
+        <div className="sheet-title">Иконка на экран телефона</div>
+        {ios ? (
+          <ol className="sheet-steps">
+            <li>Нажми <b>Поделиться</b> <span className="sheet-ic"><Ico.share /></span> внизу Safari.</li>
+            <li>Пролистай и выбери <b>«На экран „Домой"»</b>.</li>
+            <li>Нажми <b>«Добавить»</b> справа сверху.</li>
+          </ol>
+        ) : (
+          <ol className="sheet-steps">
+            <li>Открой меню браузера <b>⋮</b>.</li>
+            <li>Выбери <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.</li>
+            <li>Подтверди, иконка появится на экране.</li>
+          </ol>
+        )}
+        <button className="btn btn-primary" onClick={onClose}>Понятно</button>
+      </div>
+    </div>
+  );
+}
+
 function Sidebar({ tab, setTab, onLogout, profile, isAdmin }) {
   const name = (profile && profile.name) || "Профиль";
   const email = (profile && profile.email) || "";
@@ -1658,6 +1715,7 @@ function Sidebar({ tab, setTab, onLogout, profile, isAdmin }) {
         ))}
       </nav>
       <div className="sb-foot">
+        <InstallButton />
         <div className="sb-user">
           <div className="sb-ava">{initial}</div>
           <div className="who"><div className="n">{name}</div><div className="e">{email}</div></div>
