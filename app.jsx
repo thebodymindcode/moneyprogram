@@ -97,16 +97,18 @@ const taskWord = (n) => {
 
 // собрать контент дней из базы вместе с личными ответами и заметками пользователя
 async function loadDaysFromDb() {
-  const [daysRes, tasksRes, ansRes, notesRes] = await Promise.all([
+  const [daysRes, tasksRes, ansRes, notesRes, checkRes] = await Promise.all([
     sb.from("days").select("*").order("day_number", { ascending: true }),
     sb.from("tasks").select("*").order("day_number", { ascending: true }).order("position", { ascending: true }),
     sb.from("task_answers").select("*"),
     sb.from("notes").select("*"),
+    sb.from("checkins").select("*"),                 // отметки состояния (таблицы может не быть, тогда тихо пусто)
   ]);
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {}; (ansRes.data || []).forEach((a) => { ansMap[a.task_id] = a; });
   const noteMap = {}; (notesRes.data || []).forEach((n) => { noteMap[n.day_number] = n.text; });
+  const checkMap = {}; ((checkRes && checkRes.data) || []).forEach((c) => { checkMap[c.day_number] = c.value; });
   return (daysRes.data || []).map((d) => ({
     id: d.day_number,
     title: d.title,
@@ -115,6 +117,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",                 // путь к файлу в Storage
     audioName: d.audio_name || "",                // имя файла для показа в админке
     note: noteMap[d.day_number] || "",
+    state: (checkMap[d.day_number] != null ? Number(checkMap[d.day_number]) : null),  // 0 тревога … 10 спокойствие
     tasks: (tasksRes.data || [])
       .filter((t) => t.day_number === d.day_number)
       .map((t) => ({
@@ -364,6 +367,52 @@ function Auth() {
   );
 }
 
+/* график сдвига состояния: линия от тревоги к спокойствию по дням, где есть отметка */
+function StateChart({ days }) {
+  const pts = days.filter((d) => d.state != null).map((d) => ({ day: d.id, v: d.state }));
+  const W = 320, H = 132, padX = 16, padT = 12, padB = 10;
+  const innerW = W - padX * 2, innerH = H - padT - padB;
+  const X = (i) => (pts.length <= 1 ? W / 2 : padX + (i / (pts.length - 1)) * innerW);
+  const Y = (v) => padT + (1 - v / 10) * innerH;
+  const line = pts.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.v).toFixed(1)).join(" ");
+  const area = pts.length > 1 ? line + " L " + X(pts.length - 1).toFixed(1) + " " + (padT + innerH) + " L " + X(0).toFixed(1) + " " + (padT + innerH) + " Z" : "";
+  const first = pts.length ? pts[0].v : null;
+  const last = pts.length ? pts[pts.length - 1].v : null;
+  const delta = pts.length > 1 ? last - first : null;
+  const shift = delta == null ? "" : delta > 0 ? "спокойнее на " + delta : delta < 0 ? "пока тревожнее на " + (-delta) : "держится ровно";
+  return (
+    <div className="card span2 state-chart">
+      <div className="eyebrow">Спокойствие за деньги</div>
+      {pts.length === 0 ? (
+        <div className="sc-empty">Отмечай состояние в конце каждого дня, и здесь появится твой путь от тревоги к спокойствию.</div>
+      ) : (
+        <>
+          <div className="sc-head">
+            {pts.length > 1
+              ? <><span className="sc-big">{first}</span><span className="sc-arrow"><Ico.chev /></span><span className="sc-big now">{last}</span><span className="sc-sub">из 10, {shift}</span></>
+              : <><span className="sc-big now">{last}</span><span className="sc-sub">из 10, первая отметка</span></>}
+          </div>
+          <svg className="sc-svg" viewBox={"0 0 " + W + " " + H} role="img" aria-label="График состояния">
+            <defs>
+              <linearGradient id="scFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--steel)" stopOpacity="0.20" />
+                <stop offset="100%" stopColor="var(--steel)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[0, 5, 10].map((g) => <line key={g} x1={padX} x2={W - padX} y1={Y(g)} y2={Y(g)} className="sc-grid" />)}
+            {area && <path d={area} fill="url(#scFill)" />}
+            {pts.length > 1 && <path d={line} className="sc-line" fill="none" />}
+            {pts.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.v)} r={i === pts.length - 1 ? 5 : 3.4} className={"sc-dot" + (i === pts.length - 1 ? " last" : "")} />)}
+          </svg>
+          <div className="sc-x" style={{ justifyContent: pts.length <= 1 ? "center" : "space-between" }}>
+            {pts.map((p, i) => <span key={i}>д{p.day}</span>)}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ========================= Dashboard ========================= */
 function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, userName, isAdmin }) {
   const done = days.filter(isDayDone).length;
@@ -439,6 +488,9 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           </div>
           <div className="stage-cap muted">{stage.hint}</div>
         </div>
+
+        {/* график сдвига состояния */}
+        <StateChart days={days} />
 
         {/* последняя заметка */}
         <div className={"card last-note span2" + (lastNote ? "" : " empty")} onClick={onGoDiary}>
@@ -715,8 +767,27 @@ function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }
   );
 }
 
+/* ползунок состояния «тревога ↔ спокойствие», один штрих в конце дня */
+function StateSlider({ value, onChange }) {
+  const [v, setV] = useState(value == null ? 5 : value);
+  const [touched, setTouched] = useState(value != null);
+  const commit = () => { setTouched(true); onChange(v); };
+  return (
+    <div className="state-slider">
+      <div className="state-val">
+        {touched ? <><b>{v}</b><span> из 10</span></> : <span className="faint">Подвинь, как тебе сейчас</span>}
+      </div>
+      <input className="state-range" type="range" min="0" max="10" step="1" value={v}
+        style={{ "--fill": (v * 10) + "%" }}
+        onChange={(e) => setV(+e.target.value)}
+        onMouseUp={commit} onTouchEnd={commit} onKeyUp={commit} />
+      <div className="state-ends"><span>Тревожно</span><span>Спокойно</span></div>
+    </div>
+  );
+}
+
 /* ========================= Day screen ========================= */
-function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote }) {
+function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
   const [flash, setFlash] = useState(false);
   const [justId, setJustId] = useState(null);
   const [showDone, setShowDone] = useState(false);
@@ -768,6 +839,12 @@ function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onCon
         <textarea className="note-area" placeholder="Пара строк: что почувствовал, что понял, что зацепило" defaultValue={day.note} onBlur={(e) => saveNote(e.target.value)} />
         <div className="spacer" />
         {flash ? <span className="saved-flash">✓ Сохранено</span> : <span className="faint" style={{ fontSize: 12.5 }}>Сохраняется при выходе из поля</span>}
+      </div>
+
+      <div className="card">
+        <div className="eyebrow">Состояние за деньги</div>
+        <div className="note-hint">Один штрих в конце дня: где ты сейчас, между тревогой и спокойствием. Это копится в твой график на «Моём прогрессе».</div>
+        <StateSlider key={day.id} value={day.state} onChange={onState} />
       </div>
 
       {allDone
@@ -1715,6 +1792,10 @@ function App() {
     setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, note: v })));
     persist(sb.from("notes").upsert({ user_id: uid, day_number: days[di].id, text: v, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "заметку");
   };
+  const onState = (di, value) => {
+    setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));
+    persist(sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "состояние");
+  };
 
   const goTab = (t) => { setOpenDay(null); setTab(t); };
   const logout = () => sb.auth.signOut();
@@ -1731,7 +1812,7 @@ function App() {
       onAnswerBlur={(tid) => onAnswerBlur(openDay, tid)}
       onConfirm={(tid) => onConfirm(openDay, tid)}
       onEdit={(tid) => onEdit(openDay, tid)}
-      onNote={(v) => onNote(openDay, v)} />;
+      onNote={(v) => onNote(openDay, v)} onState={(v) => onState(openDay, v)} />;
   } else if (tab === "dashboard") {
     content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} />;
   } else if (tab === "map") {

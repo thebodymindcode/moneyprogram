@@ -106,13 +106,13 @@ const taskWord = n => {
   return "заданий";
 };
 async function loadDaysFromDb() {
-  const [daysRes, tasksRes, ansRes, notesRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
+  const [daysRes, tasksRes, ansRes, notesRes, checkRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
     ascending: true
   }), sb.from("tasks").select("*").order("day_number", {
     ascending: true
   }).order("position", {
     ascending: true
-  }), sb.from("task_answers").select("*"), sb.from("notes").select("*")]);
+  }), sb.from("task_answers").select("*"), sb.from("notes").select("*"), sb.from("checkins").select("*")]);
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {};
@@ -123,6 +123,10 @@ async function loadDaysFromDb() {
   (notesRes.data || []).forEach(n => {
     noteMap[n.day_number] = n.text;
   });
+  const checkMap = {};
+  (checkRes && checkRes.data || []).forEach(c => {
+    checkMap[c.day_number] = c.value;
+  });
   return (daysRes.data || []).map(d => ({
     id: d.day_number,
     title: d.title,
@@ -131,6 +135,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",
     audioName: d.audio_name || "",
     note: noteMap[d.day_number] || "",
+    state: checkMap[d.day_number] != null ? Number(checkMap[d.day_number]) : null,
     tasks: (tasksRes.data || []).filter(t => t.day_number === d.day_number).map(t => ({
       id: t.id,
       text: t.text,
@@ -923,6 +928,96 @@ function Auth() {
     }
   }, "\u0412\u0445\u043E\u0434 \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u043E\u0432 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B")));
 }
+function StateChart({
+  days
+}) {
+  const pts = days.filter(d => d.state != null).map(d => ({
+    day: d.id,
+    v: d.state
+  }));
+  const W = 320,
+    H = 132,
+    padX = 16,
+    padT = 12,
+    padB = 10;
+  const innerW = W - padX * 2,
+    innerH = H - padT - padB;
+  const X = i => pts.length <= 1 ? W / 2 : padX + i / (pts.length - 1) * innerW;
+  const Y = v => padT + (1 - v / 10) * innerH;
+  const line = pts.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p.v).toFixed(1)).join(" ");
+  const area = pts.length > 1 ? line + " L " + X(pts.length - 1).toFixed(1) + " " + (padT + innerH) + " L " + X(0).toFixed(1) + " " + (padT + innerH) + " Z" : "";
+  const first = pts.length ? pts[0].v : null;
+  const last = pts.length ? pts[pts.length - 1].v : null;
+  const delta = pts.length > 1 ? last - first : null;
+  const shift = delta == null ? "" : delta > 0 ? "спокойнее на " + delta : delta < 0 ? "пока тревожнее на " + -delta : "держится ровно";
+  return React.createElement("div", {
+    className: "card span2 state-chart"
+  }, React.createElement("div", {
+    className: "eyebrow"
+  }, "\u0421\u043F\u043E\u043A\u043E\u0439\u0441\u0442\u0432\u0438\u0435 \u0437\u0430 \u0434\u0435\u043D\u044C\u0433\u0438"), pts.length === 0 ? React.createElement("div", {
+    className: "sc-empty"
+  }, "\u041E\u0442\u043C\u0435\u0447\u0430\u0439 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u0432 \u043A\u043E\u043D\u0446\u0435 \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u0434\u043D\u044F, \u0438 \u0437\u0434\u0435\u0441\u044C \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u0442\u0432\u043E\u0439 \u043F\u0443\u0442\u044C \u043E\u0442 \u0442\u0440\u0435\u0432\u043E\u0433\u0438 \u043A \u0441\u043F\u043E\u043A\u043E\u0439\u0441\u0442\u0432\u0438\u044E.") : React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "sc-head"
+  }, pts.length > 1 ? React.createElement(React.Fragment, null, React.createElement("span", {
+    className: "sc-big"
+  }, first), React.createElement("span", {
+    className: "sc-arrow"
+  }, React.createElement(Ico.chev, null)), React.createElement("span", {
+    className: "sc-big now"
+  }, last), React.createElement("span", {
+    className: "sc-sub"
+  }, "\u0438\u0437 10, ", shift)) : React.createElement(React.Fragment, null, React.createElement("span", {
+    className: "sc-big now"
+  }, last), React.createElement("span", {
+    className: "sc-sub"
+  }, "\u0438\u0437 10, \u043F\u0435\u0440\u0432\u0430\u044F \u043E\u0442\u043C\u0435\u0442\u043A\u0430"))), React.createElement("svg", {
+    className: "sc-svg",
+    viewBox: "0 0 " + W + " " + H,
+    role: "img",
+    "aria-label": "\u0413\u0440\u0430\u0444\u0438\u043A \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F"
+  }, React.createElement("defs", null, React.createElement("linearGradient", {
+    id: "scFill",
+    x1: "0",
+    y1: "0",
+    x2: "0",
+    y2: "1"
+  }, React.createElement("stop", {
+    offset: "0%",
+    stopColor: "var(--steel)",
+    stopOpacity: "0.20"
+  }), React.createElement("stop", {
+    offset: "100%",
+    stopColor: "var(--steel)",
+    stopOpacity: "0"
+  }))), [0, 5, 10].map(g => React.createElement("line", {
+    key: g,
+    x1: padX,
+    x2: W - padX,
+    y1: Y(g),
+    y2: Y(g),
+    className: "sc-grid"
+  })), area && React.createElement("path", {
+    d: area,
+    fill: "url(#scFill)"
+  }), pts.length > 1 && React.createElement("path", {
+    d: line,
+    className: "sc-line",
+    fill: "none"
+  }), pts.map((p, i) => React.createElement("circle", {
+    key: i,
+    cx: X(i),
+    cy: Y(p.v),
+    r: i === pts.length - 1 ? 5 : 3.4,
+    className: "sc-dot" + (i === pts.length - 1 ? " last" : "")
+  }))), React.createElement("div", {
+    className: "sc-x",
+    style: {
+      justifyContent: pts.length <= 1 ? "center" : "space-between"
+    }
+  }, pts.map((p, i) => React.createElement("span", {
+    key: i
+  }, "\u0434", p.day)))));
+}
 function Dashboard({
   days,
   currentIndex,
@@ -1030,7 +1125,9 @@ function Dashboard({
     title: s.name
   }))), React.createElement("div", {
     className: "stage-cap muted"
-  }, stage.hint)), React.createElement("div", {
+  }, stage.hint)), React.createElement(StateChart, {
+    days: days
+  }), React.createElement("div", {
     className: "card last-note span2" + (lastNote ? "" : " empty"),
     onClick: onGoDiary
   }, React.createElement("div", {
@@ -1418,6 +1515,40 @@ function TaskItem({
     onClick: () => filled && onConfirm(task.id)
   }, React.createElement(Ico.check, null), " \u0413\u043E\u0442\u043E\u0432\u043E")));
 }
+function StateSlider({
+  value,
+  onChange
+}) {
+  const [v, setV] = useState(value == null ? 5 : value);
+  const [touched, setTouched] = useState(value != null);
+  const commit = () => {
+    setTouched(true);
+    onChange(v);
+  };
+  return React.createElement("div", {
+    className: "state-slider"
+  }, React.createElement("div", {
+    className: "state-val"
+  }, touched ? React.createElement(React.Fragment, null, React.createElement("b", null, v), React.createElement("span", null, " \u0438\u0437 10")) : React.createElement("span", {
+    className: "faint"
+  }, "\u041F\u043E\u0434\u0432\u0438\u043D\u044C, \u043A\u0430\u043A \u0442\u0435\u0431\u0435 \u0441\u0435\u0439\u0447\u0430\u0441")), React.createElement("input", {
+    className: "state-range",
+    type: "range",
+    min: "0",
+    max: "10",
+    step: "1",
+    value: v,
+    style: {
+      "--fill": v * 10 + "%"
+    },
+    onChange: e => setV(+e.target.value),
+    onMouseUp: commit,
+    onTouchEnd: commit,
+    onKeyUp: commit
+  }), React.createElement("div", {
+    className: "state-ends"
+  }, React.createElement("span", null, "\u0422\u0440\u0435\u0432\u043E\u0436\u043D\u043E"), React.createElement("span", null, "\u0421\u043F\u043E\u043A\u043E\u0439\u043D\u043E")));
+}
 function DayScreen({
   day,
   dayIndex,
@@ -1427,7 +1558,8 @@ function DayScreen({
   onAnswerBlur,
   onConfirm,
   onEdit,
-  onNote
+  onNote,
+  onState
 }) {
   const [flash, setFlash] = useState(false);
   const [justId, setJustId] = useState(null);
@@ -1516,7 +1648,17 @@ function DayScreen({
     style: {
       fontSize: 12.5
     }
-  }, "\u0421\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442\u0441\u044F \u043F\u0440\u0438 \u0432\u044B\u0445\u043E\u0434\u0435 \u0438\u0437 \u043F\u043E\u043B\u044F")), allDone ? React.createElement("div", {
+  }, "\u0421\u043E\u0445\u0440\u0430\u043D\u044F\u0435\u0442\u0441\u044F \u043F\u0440\u0438 \u0432\u044B\u0445\u043E\u0434\u0435 \u0438\u0437 \u043F\u043E\u043B\u044F")), React.createElement("div", {
+    className: "card"
+  }, React.createElement("div", {
+    className: "eyebrow"
+  }, "\u0421\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u0435 \u0437\u0430 \u0434\u0435\u043D\u044C\u0433\u0438"), React.createElement("div", {
+    className: "note-hint"
+  }, "\u041E\u0434\u0438\u043D \u0448\u0442\u0440\u0438\u0445 \u0432 \u043A\u043E\u043D\u0446\u0435 \u0434\u043D\u044F: \u0433\u0434\u0435 \u0442\u044B \u0441\u0435\u0439\u0447\u0430\u0441, \u043C\u0435\u0436\u0434\u0443 \u0442\u0440\u0435\u0432\u043E\u0433\u043E\u0439 \u0438 \u0441\u043F\u043E\u043A\u043E\u0439\u0441\u0442\u0432\u0438\u0435\u043C. \u042D\u0442\u043E \u043A\u043E\u043F\u0438\u0442\u0441\u044F \u0432 \u0442\u0432\u043E\u0439 \u0433\u0440\u0430\u0444\u0438\u043A \u043D\u0430 \xAB\u041C\u043E\u0451\u043C \u043F\u0440\u043E\u0433\u0440\u0435\u0441\u0441\u0435\xBB."), React.createElement(StateSlider, {
+    key: day.id,
+    value: day.state,
+    onChange: onState
+  })), allDone ? React.createElement("div", {
     className: "card day-done-card" + (showDone ? " pop" : "")
   }, React.createElement("div", {
     className: "dd-check"
@@ -2977,6 +3119,20 @@ function App() {
       onConflict: "user_id,day_number"
     }), "заметку");
   };
+  const onState = (di, value) => {
+    setDays(ds => ds.map((d, i) => i !== di ? d : {
+      ...d,
+      state: value
+    }));
+    persist(sb.from("checkins").upsert({
+      user_id: uid,
+      day_number: days[di].id,
+      value: value,
+      updated_at: nowISO()
+    }, {
+      onConflict: "user_id,day_number"
+    }), "состояние");
+  };
   const goTab = t => {
     setOpenDay(null);
     setTab(t);
@@ -3000,7 +3156,8 @@ function App() {
       onAnswerBlur: tid => onAnswerBlur(openDay, tid),
       onConfirm: tid => onConfirm(openDay, tid),
       onEdit: tid => onEdit(openDay, tid),
-      onNote: v => onNote(openDay, v)
+      onNote: v => onNote(openDay, v),
+      onState: v => onState(openDay, v)
     });
   } else if (tab === "dashboard") {
     content = React.createElement(Dashboard, {
