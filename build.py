@@ -50,10 +50,15 @@ header = "/* СГЕНЕРИРОВАНО из app.jsx через build.py. Не �
 js_path.write_text(header + out, encoding="utf-8")
 
 ver = hashlib.md5(out.encode("utf-8")).hexdigest()[:8]
+# версия для styles.css по его содержимому, чтобы правки дизайна не висели в кеше у людей
+css_path = root / "styles.css"
+css_ver = hashlib.md5(css_path.read_bytes()).hexdigest()[:8] if css_path.exists() else None
 if html_path.exists():
     html = html_path.read_text(encoding="utf-8")
     new_html = re.sub(r'src="app\.js(?:\?v=[^"]*)?"', f'src="app.js?v={ver}"', html)
+    if css_ver:
+        new_html = re.sub(r'href="styles\.css(?:\?v=[^"]*)?"', f'href="styles.css?v={css_ver}"', new_html)
     if new_html != html:
         html_path.write_text(new_html, encoding="utf-8")
 
-print(f"app.js собран: {len(out)} символов, версия v={ver}")
+print(f"app.js собран: {len(out)} символов, версия v={ver}" + (f", styles.css v={css_ver}" if css_ver else ""))
