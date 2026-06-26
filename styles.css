@@ -532,6 +532,8 @@ button { font-family: inherit; }
 .install-btn:active { transform: scale(.98); }
 .install-btn svg { width: 18px; height: 18px; flex: none; }
 .sb-foot .install-btn { margin-bottom: 12px; }
+.gd-install { margin-top: 12px; max-width: 380px; }
+.gd-install .install-btn { padding: 14px; font-size: 14px; }
 .only-mobile { display: none; }
 @media (max-width: 899px) { .only-mobile { display: block; } }
 
