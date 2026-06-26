@@ -189,14 +189,26 @@ function computeCurrentIndex(days, unlockedCount) {
   }
   return Math.max(0, Math.min(days.length - 1, unlockedCount - 1));
 }
-// статус дня: пройден, сегодня, доступен (открыт, но не сделан и не текущий), закрыт
+// статус дня. Доступ строго по порядку: открыть можно только пройденные дни и сегодняшний.
+// done   — пройден (можно вернуться)
+// today  — сегодняшний, открыт
+// next   — следующий: видно название, минуты и число заданий, но пока закрыт
+// hidden — дальше по программе: название и тема спрятаны, чтобы не забегать вперёд
 function dayStatus(d, i, unlockedCount, currentIndex) {
   if (isDayDone(d)) return "done";
-  if (i + 1 > unlockedCount) return "locked";
-  if (i === currentIndex) return "today";
-  return "open";
+  if (i <= currentIndex) return (i + 1 <= unlockedCount) ? "today" : "next";
+  if (i === currentIndex + 1) return "next";
+  return "hidden";
 }
-const STATUS_LABEL = { done: "Пройден", today: "Сегодня", open: "Доступен", locked: "Закрыт" };
+const STATUS_LABEL = { done: "Пройден", today: "Сегодня", next: "Следующий", hidden: "Закрыто" };
+// можно ли открыть день: только пройденный или сегодняшний
+const dayOpenable = (status) => status === "done" || status === "today";
+// подпись под закрытым днём: до старта по календарю показываем дату, иначе по порядку прохождения
+function lockLine(status, d, unlockedCount) {
+  if (d.id > unlockedCount) return unlockLabel(d.id);
+  if (status === "next") return "Откроется, когда пройдёшь день " + (d.id - 1);
+  return "Откроется по порядку, после предыдущих дней";
+}
 
 /* ========================= icons ========================= */
 const Ico = {
@@ -360,7 +372,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
   const pct = Math.round((done / days.length) * 100);
   const today = days[currentIndex];
   const todayUnlocked = currentIndex + 1 <= unlockedCount;
-  const upcoming = days.slice(currentIndex, currentIndex + 5);
+  const upcoming = days.slice(currentIndex, currentIndex + 3);   // сегодня, следующий и один закрытый намёк
 
   const stageIdx = stageOf(today.id);
   const stage = STAGES[stageIdx];
@@ -482,15 +494,17 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
             {upcoming.map((d) => {
               const di = days.indexOf(d);
               const st = dayStatus(d, di, unlockedCount, currentIndex);
+              const clickable = dayOpenable(st);
+              const hidden = st === "hidden";
               const bg = st === "done" ? { background: "var(--good-soft)", color: "var(--good)" }
-                : (st === "today" || st === "open") ? { background: "#e7ebf1", color: "var(--steel)" }
+                : st === "today" ? { background: "#e7ebf1", color: "var(--steel)" }
+                : st === "next" ? { background: "#eef1f5", color: "var(--steel-2)" }
                 : { background: "#eef1f5", color: "var(--ink-faint)" };
-              const clickable = st !== "locked";
               return (
-                <div key={d.id} className="card mini" onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .85 }}>
-                  <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : st === "locked" ? <Ico.lock /> : d.id}</div>
-                  <div className="nm">{d.title}</div>
-                  <div className="du">{st === "locked" ? unlockLabel(d.id) : <>🎧 {durLabel(d.duration)}</>}</div>
+                <div key={d.id} className={"card mini " + st} onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .9 }}>
+                  <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock />}</div>
+                  <div className="nm">{hidden ? "День " + d.id : d.title}</div>
+                  <div className="du">{hidden ? "Откроется по порядку" : <>🎧 {durLabel(d.duration)}</>}</div>
                 </div>
               );
             })}
@@ -515,13 +529,16 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay }) {
       <div className="path">
         {days.map((d, i) => {
           const status = dayStatus(d, i, unlockedCount, currentIndex);
-          const clickable = status !== "locked";
+          const clickable = dayOpenable(status);
+          const showMeta = clickable || status === "next";   // минуты и задания видны до следующего дня включительно
+          const hidden = status === "hidden";
           return (
             <div key={d.id} className={"node " + status} onClick={() => clickable && onOpenDay(i)}>
-              <div className="dot">{status === "done" ? <Ico.check /> : status === "locked" ? <Ico.lock /> : d.id}</div>
+              <div className="dot">{status === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock />}</div>
               <div className="body">
-                <div className="t">День {d.id}: {d.title}</div>
-                <div className="s">{status === "locked" ? unlockLabel(d.id) : <>🎧 {durLabel(d.duration)} · {d.tasks.length} {taskWord(d.tasks.length)}</>}</div>
+                <div className="t">{hidden ? "День " + d.id : "День " + d.id + ": " + d.title}</div>
+                {showMeta && <div className="s">🎧 {durLabel(d.duration)} · {d.tasks.length} {taskWord(d.tasks.length)}</div>}
+                {!clickable && <div className="lockhint"><Ico.lock /> {lockLine(status, d, unlockedCount)}</div>}
               </div>
               <span className={"tag " + status}>{STATUS_LABEL[status]}</span>
             </div>
@@ -1720,6 +1737,11 @@ function App() {
 
   const goTab = (t) => { setOpenDay(null); setTab(t); };
   const logout = () => sb.auth.signOut();
+  // открыть день можно только если он доступен (пройден или сегодняшний). Админу открыто всё.
+  const openDayGuarded = (i) => {
+    if (i == null || !days[i]) { setOpenDay(null); return; }
+    if (isAdmin || dayOpenable(dayStatus(days[i], i, unlockedCount, currentIndex))) setOpenDay(i);
+  };
 
   let content;
   if (openDay !== null) {
@@ -1730,11 +1752,11 @@ function App() {
       onEdit={(tid) => onEdit(openDay, tid)}
       onNote={(v) => onNote(openDay, v)} />;
   } else if (tab === "dashboard") {
-    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} />;
+    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} />;
   } else if (tab === "map") {
-    content = <DayMap days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} />;
+    content = <DayMap days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} />;
   } else if (tab === "diary") {
-    content = <Diary days={days} onOpenDay={(i) => setOpenDay(i)} />;
+    content = <Diary days={days} onOpenDay={openDayGuarded} />;
   } else if (tab === "guide") {
     content = <Guide />;
   } else if (tab === "stats" && isAdmin) {
@@ -1742,7 +1764,7 @@ function App() {
   } else if (tab === "admin" && isAdmin) {
     content = <Admin days={days} setDays={setDays} onReload={reload} />;
   } else {
-    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={(i) => setOpenDay(i)} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} />;
+    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} />;
   }
 
   return (

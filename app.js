@@ -220,16 +220,22 @@ function computeCurrentIndex(days, unlockedCount) {
 }
 function dayStatus(d, i, unlockedCount, currentIndex) {
   if (isDayDone(d)) return "done";
-  if (i + 1 > unlockedCount) return "locked";
-  if (i === currentIndex) return "today";
-  return "open";
+  if (i <= currentIndex) return i + 1 <= unlockedCount ? "today" : "next";
+  if (i === currentIndex + 1) return "next";
+  return "hidden";
 }
 const STATUS_LABEL = {
   done: "Пройден",
   today: "Сегодня",
-  open: "Доступен",
-  locked: "Закрыт"
+  next: "Следующий",
+  hidden: "Закрыто"
 };
+const dayOpenable = status => status === "done" || status === "today";
+function lockLine(status, d, unlockedCount) {
+  if (d.id > unlockedCount) return unlockLabel(d.id);
+  if (status === "next") return "Откроется, когда пройдёшь день " + (d.id - 1);
+  return "Откроется по порядку, после предыдущих дней";
+}
 const Ico = {
   check: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
@@ -930,7 +936,7 @@ function Dashboard({
   const pct = Math.round(done / days.length * 100);
   const today = days[currentIndex];
   const todayUnlocked = currentIndex + 1 <= unlockedCount;
-  const upcoming = days.slice(currentIndex, currentIndex + 5);
+  const upcoming = days.slice(currentIndex, currentIndex + 3);
   const stageIdx = stageOf(today.id);
   const stage = STAGES[stageIdx];
   const lastNote = [...days].reverse().find(d => d.note && d.note.trim());
@@ -1090,32 +1096,36 @@ function Dashboard({
   }, upcoming.map(d => {
     const di = days.indexOf(d);
     const st = dayStatus(d, di, unlockedCount, currentIndex);
+    const clickable = dayOpenable(st);
+    const hidden = st === "hidden";
     const bg = st === "done" ? {
       background: "var(--good-soft)",
       color: "var(--good)"
-    } : st === "today" || st === "open" ? {
+    } : st === "today" ? {
       background: "#e7ebf1",
       color: "var(--steel)"
+    } : st === "next" ? {
+      background: "#eef1f5",
+      color: "var(--steel-2)"
     } : {
       background: "#eef1f5",
       color: "var(--ink-faint)"
     };
-    const clickable = st !== "locked";
     return React.createElement("div", {
       key: d.id,
-      className: "card mini",
+      className: "card mini " + st,
       onClick: () => clickable && onOpenDay(di),
       style: {
-        opacity: clickable ? 1 : .85
+        opacity: clickable ? 1 : .9
       }
     }, React.createElement("div", {
       className: "badge",
       style: bg
-    }, st === "done" ? React.createElement(Ico.check, null) : st === "locked" ? React.createElement(Ico.lock, null) : d.id), React.createElement("div", {
+    }, st === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, null)), React.createElement("div", {
       className: "nm"
-    }, d.title), React.createElement("div", {
+    }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
-    }, st === "locked" ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
+    }, hidden ? "Откроется по порядку" : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))));
 }
 function DayMap({
@@ -1136,20 +1146,24 @@ function DayMap({
     className: "path"
   }, days.map((d, i) => {
     const status = dayStatus(d, i, unlockedCount, currentIndex);
-    const clickable = status !== "locked";
+    const clickable = dayOpenable(status);
+    const showMeta = clickable || status === "next";
+    const hidden = status === "hidden";
     return React.createElement("div", {
       key: d.id,
       className: "node " + status,
       onClick: () => clickable && onOpenDay(i)
     }, React.createElement("div", {
       className: "dot"
-    }, status === "done" ? React.createElement(Ico.check, null) : status === "locked" ? React.createElement(Ico.lock, null) : d.id), React.createElement("div", {
+    }, status === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, null)), React.createElement("div", {
       className: "body"
     }, React.createElement("div", {
       className: "t"
-    }, "\u0414\u0435\u043D\u044C ", d.id, ": ", d.title), React.createElement("div", {
+    }, hidden ? "День " + d.id : "День " + d.id + ": " + d.title), showMeta && React.createElement("div", {
       className: "s"
-    }, status === "locked" ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration), " \xB7 ", d.tasks.length, " ", taskWord(d.tasks.length)))), React.createElement("span", {
+    }, "\uD83C\uDFA7 ", durLabel(d.duration), " \xB7 ", d.tasks.length, " ", taskWord(d.tasks.length)), !clickable && React.createElement("div", {
+      className: "lockhint"
+    }, React.createElement(Ico.lock, null), " ", lockLine(status, d, unlockedCount))), React.createElement("span", {
       className: "tag " + status
     }, STATUS_LABEL[status]));
   })));
@@ -2970,6 +2984,13 @@ function App() {
     setTab(t);
   };
   const logout = () => sb.auth.signOut();
+  const openDayGuarded = i => {
+    if (i == null || !days[i]) {
+      setOpenDay(null);
+      return;
+    }
+    if (isAdmin || dayOpenable(dayStatus(days[i], i, unlockedCount, currentIndex))) setOpenDay(i);
+  };
   let content;
   if (openDay !== null) {
     content = React.createElement(DayScreen, {
@@ -2988,7 +3009,7 @@ function App() {
       days: days,
       currentIndex: currentIndex,
       unlockedCount: unlockedCount,
-      onOpenDay: i => setOpenDay(i),
+      onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
       userName: profile && profile.name && profile.name.trim() || ""
     });
@@ -2997,12 +3018,12 @@ function App() {
       days: days,
       currentIndex: currentIndex,
       unlockedCount: unlockedCount,
-      onOpenDay: i => setOpenDay(i)
+      onOpenDay: openDayGuarded
     });
   } else if (tab === "diary") {
     content = React.createElement(Diary, {
       days: days,
-      onOpenDay: i => setOpenDay(i)
+      onOpenDay: openDayGuarded
     });
   } else if (tab === "guide") {
     content = React.createElement(Guide, null);
@@ -3021,7 +3042,7 @@ function App() {
       days: days,
       currentIndex: currentIndex,
       unlockedCount: unlockedCount,
-      onOpenDay: i => setOpenDay(i),
+      onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
       userName: profile && profile.name && profile.name.trim() || ""
     });
