@@ -555,7 +555,6 @@ function Player({ day }) {
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
   const [speed, setSpeed] = useState(loadSpeed);   // скорость воспроизведения, общая для всех уроков
-  const [speedOpen, setSpeedOpen] = useState(false); // открыта ли панелька скорости
 
   // меняем скорость и запоминаем выбор, чтобы держался на всех днях и после перезахода
   const applySpeed = (v) => {
@@ -669,33 +668,22 @@ function Player({ day }) {
           <i style={{ width: pct + "%" }} />
           <b style={{ left: pct + "%" }} />
         </div>
-        <div className="seek-time">
-          <span>{loading ? "загрузка…" : fmt(t)}</span>
-          <button className={"speed-pill" + (speed !== 1 ? " on" : "")} disabled={loading}
-            onClick={() => setSpeedOpen((v) => !v)} title="Скорость воспроизведения">
-            <Ico.speed /> {fmtSpeed(speed)}
-          </button>
-          <span>{fmt(dur)}</span>
+        <div className="seek-time"><span>{loading ? "загрузка…" : fmt(t)}</span><span>{fmt(dur)}</span></div>
+      </div>
+      <div className="speed-box">
+        <div className="speed-head">
+          <span className="speed-lbl"><Ico.speed /> Скорость</span>
+          <div className="speed-chips">
+            {SPEED_PRESETS.map((p) => (
+              <button key={p} className={"speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : "")}
+                disabled={loading} onClick={() => applySpeed(p)}>{fmtSpeed(p)}</button>
+            ))}
+          </div>
         </div>
-        {speedOpen && (
-          <>
-            <div className="speed-scrim" onClick={() => setSpeedOpen(false)} />
-            <div className="speed-pop" role="dialog" aria-label="Скорость воспроизведения">
-              <div className="speed-pop-head">
-                <span>Скорость</span><b>{fmtSpeed(speed)}</b>
-              </div>
-              <input className="speed-range" type="range"
-                min={SPEED_MIN} max={SPEED_MAX} step="0.05" value={speed}
-                onChange={(e) => applySpeed(e.target.value)} />
-              <div className="speed-chips">
-                {SPEED_PRESETS.map((p) => (
-                  <button key={p} className={"speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : "")}
-                    onClick={() => applySpeed(p)}>{fmtSpeed(p)}</button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+        <input className="speed-range" type="range"
+          min={SPEED_MIN} max={SPEED_MAX} step="0.05" value={speed} disabled={loading}
+          aria-label="Скорость воспроизведения"
+          onChange={(e) => applySpeed(e.target.value)} />
       </div>
     </div>
   );

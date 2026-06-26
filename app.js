@@ -1181,7 +1181,6 @@ function Player({
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
   const [speed, setSpeed] = useState(loadSpeed);
-  const [speedOpen, setSpeedOpen] = useState(false);
   const applySpeed = v => {
     const s = Math.round(clampSpeed(v) * 100) / 100;
     setSpeed(s);
@@ -1338,35 +1337,30 @@ function Player({
     }
   })), React.createElement("div", {
     className: "seek-time"
-  }, React.createElement("span", null, loading ? "загрузка…" : fmt(t)), React.createElement("button", {
-    className: "speed-pill" + (speed !== 1 ? " on" : ""),
-    disabled: loading,
-    onClick: () => setSpeedOpen(v => !v),
-    title: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F"
-  }, React.createElement(Ico.speed, null), " ", fmtSpeed(speed)), React.createElement("span", null, fmt(dur))), speedOpen && React.createElement(React.Fragment, null, React.createElement("div", {
-    className: "speed-scrim",
-    onClick: () => setSpeedOpen(false)
-  }), React.createElement("div", {
-    className: "speed-pop",
-    role: "dialog",
-    "aria-label": "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F"
+  }, React.createElement("span", null, loading ? "загрузка…" : fmt(t)), React.createElement("span", null, fmt(dur)))), React.createElement("div", {
+    className: "speed-box"
   }, React.createElement("div", {
-    className: "speed-pop-head"
-  }, React.createElement("span", null, "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C"), React.createElement("b", null, fmtSpeed(speed))), React.createElement("input", {
+    className: "speed-head"
+  }, React.createElement("span", {
+    className: "speed-lbl"
+  }, React.createElement(Ico.speed, null), " \u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C"), React.createElement("div", {
+    className: "speed-chips"
+  }, SPEED_PRESETS.map(p => React.createElement("button", {
+    key: p,
+    className: "speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : ""),
+    disabled: loading,
+    onClick: () => applySpeed(p)
+  }, fmtSpeed(p))))), React.createElement("input", {
     className: "speed-range",
     type: "range",
     min: SPEED_MIN,
     max: SPEED_MAX,
     step: "0.05",
     value: speed,
+    disabled: loading,
+    "aria-label": "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F",
     onChange: e => applySpeed(e.target.value)
-  }), React.createElement("div", {
-    className: "speed-chips"
-  }, SPEED_PRESETS.map(p => React.createElement("button", {
-    key: p,
-    className: "speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : ""),
-    onClick: () => applySpeed(p)
-  }, fmtSpeed(p))))))));
+  })));
 }
 function TaskItem({
   task,
