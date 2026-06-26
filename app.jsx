@@ -96,7 +96,15 @@ const taskWord = (n) => {
 };
 
 // собрать контент дней из базы вместе с личными ответами и заметками пользователя
+// отметки состояния храним на устройстве (надёжно, без таблицы), плюс по-тихому в базу
+const STATE_LS = "mp_state";
+function stateLSget(uid) { try { return JSON.parse(localStorage.getItem(STATE_LS + ":" + uid)) || {}; } catch (e) { return {}; } }
+function stateLSset(uid, dn, val) { try { const m = stateLSget(uid); m[dn] = val; localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m)); } catch (e) {} }
+
 async function loadDaysFromDb() {
+  const sessRes = await sb.auth.getSession();
+  const lsUid = (sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user) ? sessRes.data.session.user.id : "";
+  const lsState = lsUid ? stateLSget(lsUid) : {};
   const [daysRes, tasksRes, ansRes, notesRes, checkRes] = await Promise.all([
     sb.from("days").select("*").order("day_number", { ascending: true }),
     sb.from("tasks").select("*").order("day_number", { ascending: true }).order("position", { ascending: true }),
@@ -117,7 +125,8 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",                 // путь к файлу в Storage
     audioName: d.audio_name || "",                // имя файла для показа в админке
     note: noteMap[d.day_number] || "",
-    state: (checkMap[d.day_number] != null ? Number(checkMap[d.day_number]) : null),  // 0 тревога … 10 спокойствие
+    state: (checkMap[d.day_number] != null ? Number(checkMap[d.day_number])           // 0 тревога … 10 спокойствие
+            : (lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null)), // из базы, иначе с устройства
     tasks: (tasksRes.data || [])
       .filter((t) => t.day_number === d.day_number)
       .map((t) => ({
@@ -1796,7 +1805,9 @@ function App() {
   };
   const onState = (di, value) => {
     setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));
-    persist(sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "состояние");
+    stateLSset(uid, days[di].id, value);                       // на устройстве: всегда надёжно
+    // по-тихому в базу, если таблица checkins есть; ошибку НЕ показываем (баннера не будет)
+    try { sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }).then(() => {}, () => {}); } catch (e) {}
   };
 
   const goTab = (t) => { setOpenDay(null); setTab(t); };
