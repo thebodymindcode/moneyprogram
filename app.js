@@ -218,19 +218,21 @@ function computeCurrentIndex(days, unlockedCount) {
   }
   return Math.max(0, Math.min(days.length - 1, unlockedCount - 1));
 }
-function dayStatus(d, i, unlockedCount, currentIndex) {
+function dayStatus(d, i, unlockedCount, currentIndex, isAdmin) {
   if (isDayDone(d)) return "done";
-  if (i <= currentIndex) return i + 1 <= unlockedCount ? "today" : "next";
+  if (i <= currentIndex) return i + 1 <= unlockedCount || isAdmin ? "today" : "next";
+  if (isAdmin) return "open";
   if (i === currentIndex + 1) return "next";
   return "hidden";
 }
 const STATUS_LABEL = {
   done: "Пройден",
   today: "Сегодня",
+  open: "Доступен",
   next: "Следующий",
   hidden: "Закрыто"
 };
-const dayOpenable = status => status === "done" || status === "today";
+const dayOpenable = status => status === "done" || status === "today" || status === "open";
 function lockLine(status, d, unlockedCount) {
   if (d.id > unlockedCount) return unlockLabel(d.id);
   if (status === "next") return "Откроется, когда пройдёшь день " + (d.id - 1);
@@ -923,7 +925,8 @@ function Dashboard({
   unlockedCount,
   onOpenDay,
   onGoDiary,
-  userName
+  userName,
+  isAdmin
 }) {
   const done = days.filter(isDayDone).length;
   const streak = (() => {
@@ -1095,7 +1098,7 @@ function Dashboard({
     className: "upnext"
   }, upcoming.map(d => {
     const di = days.indexOf(d);
-    const st = dayStatus(d, di, unlockedCount, currentIndex);
+    const st = dayStatus(d, di, unlockedCount, currentIndex, isAdmin);
     const clickable = dayOpenable(st);
     const hidden = st === "hidden";
     const bg = st === "done" ? {
@@ -1104,7 +1107,7 @@ function Dashboard({
     } : st === "today" ? {
       background: "#e7ebf1",
       color: "var(--steel)"
-    } : st === "next" ? {
+    } : st === "next" || st === "open" ? {
       background: "#eef1f5",
       color: "var(--steel-2)"
     } : {
@@ -1132,7 +1135,8 @@ function DayMap({
   days,
   currentIndex,
   unlockedCount,
-  onOpenDay
+  onOpenDay,
+  isAdmin
 }) {
   return React.createElement("div", {
     className: "page"
@@ -1145,7 +1149,7 @@ function DayMap({
   }, "\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0435 \u0448\u0430\u0433\u0438 \u0434\u043E \u043D\u043E\u0432\u044B\u0445 \u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0439 \u0441 \u0434\u0435\u043D\u044C\u0433\u0430\u043C\u0438. \u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D\u043D\u044B\u0439 \u0434\u0435\u043D\u044C \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u043E \u0434\u043E\u0433\u043E\u043D\u044F\u0435\u0442\u0441\u044F."))), React.createElement("div", {
     className: "path"
   }, days.map((d, i) => {
-    const status = dayStatus(d, i, unlockedCount, currentIndex);
+    const status = dayStatus(d, i, unlockedCount, currentIndex, isAdmin);
     const clickable = dayOpenable(status);
     const showMeta = clickable || status === "next";
     const hidden = status === "hidden";
@@ -3011,14 +3015,16 @@ function App() {
       unlockedCount: unlockedCount,
       onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
-      userName: profile && profile.name && profile.name.trim() || ""
+      userName: profile && profile.name && profile.name.trim() || "",
+      isAdmin: isAdmin
     });
   } else if (tab === "map") {
     content = React.createElement(DayMap, {
       days: days,
       currentIndex: currentIndex,
       unlockedCount: unlockedCount,
-      onOpenDay: openDayGuarded
+      onOpenDay: openDayGuarded,
+      isAdmin: isAdmin
     });
   } else if (tab === "diary") {
     content = React.createElement(Diary, {
@@ -3044,7 +3050,8 @@ function App() {
       unlockedCount: unlockedCount,
       onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
-      userName: profile && profile.name && profile.name.trim() || ""
+      userName: profile && profile.name && profile.name.trim() || "",
+      isAdmin: isAdmin
     });
   }
   return React.createElement("div", {
