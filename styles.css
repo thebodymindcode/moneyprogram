@@ -939,6 +939,14 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 .gd-list li:last-child { margin-bottom: 0; }
 .gd-list li::before { content: ""; position: absolute; left: 3px; top: 9px; width: 8px; height: 8px; border-radius: 999px; background: linear-gradient(150deg, var(--steel-2), var(--steel)); }
 .gd-list b { color: var(--steel); font-weight: 800; }
+.gd-body p b, .gd-faq-a b { color: var(--steel); font-weight: 800; }
+
+/* подсказка-callout в шаге */
+.gd-tip { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 13px 15px;
+  background: linear-gradient(180deg, #f3f6fa, #eef2f7); border: 1px solid var(--line); border-radius: 14px;
+  font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); }
+.gd-tip svg { width: 18px; height: 18px; flex: none; color: var(--steel); margin-top: 1px; }
+.gd-tip b { color: var(--steel); font-weight: 800; }
 
 /* картинка-экран */
 .gd-shot { margin: 18px 0 0; }
