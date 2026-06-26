@@ -204,13 +204,11 @@ function unlockedCountNow(total) {
   if (elapsed < 0) return 0;
   return Math.max(0, Math.min(total, Math.floor(elapsed / DAY_MS) + 1));
 }
+const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 function unlockLabel(dayNumber) {
   const c = cfg();
   const local = new Date(startInstant() + (dayNumber - 1) * DAY_MS + (c.TZ_OFFSET_HOURS || 0) * 3600000);
-  const dd = String(local.getUTCDate()).padStart(2, "0");
-  const mm = String(local.getUTCMonth() + 1).padStart(2, "0");
-  const h = c.OPEN_HOUR == null ? 8 : c.OPEN_HOUR;
-  return "Откроется " + dd + "." + mm + " в " + h + ":00";
+  return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
 }
 function computeCurrentIndex(days, unlockedCount) {
   for (let i = 0; i < days.length; i++) {
@@ -234,9 +232,7 @@ const STATUS_LABEL = {
 };
 const dayOpenable = status => status === "done" || status === "today" || status === "open";
 function lockLine(status, d, unlockedCount) {
-  if (d.id > unlockedCount) return unlockLabel(d.id);
-  if (status === "next") return "Откроется сразу после дня " + (d.id - 1);
-  return "Откроется в свой день, идём по шагам";
+  return unlockLabel(d.id);
 }
 const Ico = {
   check: p => React.createElement("svg", _extends({
@@ -1139,7 +1135,7 @@ function Dashboard({
       className: "nm"
     }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
-    }, hidden ? "Откроется в свой день" : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
+    }, hidden ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))));
 }
 function DayMap({

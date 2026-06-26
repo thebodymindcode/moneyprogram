@@ -173,14 +173,12 @@ function unlockedCountNow(total) {
   if (elapsed < 0) return 0;
   return Math.max(0, Math.min(total, Math.floor(elapsed / DAY_MS) + 1));
 }
-// подпись «Откроется ДД.ММ в 8:00» для закрытого дня
+// живая русская дата открытия дня: «Откроется 3 июля»
+const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 function unlockLabel(dayNumber) {
   const c = cfg();
   const local = new Date(startInstant() + (dayNumber - 1) * DAY_MS + (c.TZ_OFFSET_HOURS || 0) * 3600000);
-  const dd = String(local.getUTCDate()).padStart(2, "0");
-  const mm = String(local.getUTCMonth() + 1).padStart(2, "0");
-  const h = c.OPEN_HOUR == null ? 8 : c.OPEN_HOUR;
-  return "Откроется " + dd + "." + mm + " в " + h + ":00";
+  return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
 }
 // первый невыполненный среди открытых дней (это и есть «сегодня»)
 function computeCurrentIndex(days, unlockedCount) {
@@ -206,10 +204,9 @@ const STATUS_LABEL = { done: "Пройден", today: "Сегодня", open: "�
 // можно ли открыть день: пройденный, сегодняшний или открытый админу
 const dayOpenable = (status) => status === "done" || status === "today" || status === "open";
 // подпись под закрытым днём: до старта по календарю показываем дату, иначе по порядку прохождения
+// подпись под закрытым днём: всегда показываем его дату открытия
 function lockLine(status, d, unlockedCount) {
-  if (d.id > unlockedCount) return unlockLabel(d.id);
-  if (status === "next") return "Откроется сразу после дня " + (d.id - 1);
-  return "Откроется в свой день, идём по шагам";
+  return unlockLabel(d.id);
 }
 
 /* ========================= icons ========================= */
@@ -506,7 +503,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
                 <div key={d.id} className={"card mini " + st} onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .9 }}>
                   <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={19} height={19} />}</div>
                   <div className="nm">{hidden ? "День " + d.id : d.title}</div>
-                  <div className="du">{hidden ? "Откроется в свой день" : <>🎧 {durLabel(d.duration)}</>}</div>
+                  <div className="du">{hidden ? unlockLabel(d.id) : <>🎧 {durLabel(d.duration)}</>}</div>
                 </div>
               );
             })}
