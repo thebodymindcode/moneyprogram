@@ -367,6 +367,22 @@ const Ico = {
   }, p), React.createElement("path", {
     d: "M4 12h2M9 8v8M14 5v14M19 9v6"
   })),
+  speed: p => React.createElement("svg", _extends({
+    viewBox: "0 0 24 24",
+    width: "14",
+    height: "14",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), React.createElement("path", {
+    d: "M12 21a9 9 0 1 0-9-9"
+  }), React.createElement("path", {
+    d: "M12 12l4-3.5"
+  }), React.createElement("path", {
+    d: "M3 12H1.5M5 7l-1-1"
+  })),
   upload: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
     width: "16",
@@ -1138,6 +1154,19 @@ function DayMap({
     }, STATUS_LABEL[status]));
   })));
 }
+const SPEED_KEY = "mp_audio_speed";
+const SPEED_MIN = 0.8,
+  SPEED_MAX = 2;
+const SPEED_PRESETS = [1, 1.3, 1.5, 1.8];
+const clampSpeed = v => Math.min(SPEED_MAX, Math.max(SPEED_MIN, Number(v) || 1));
+function loadSpeed() {
+  try {
+    return clampSpeed(parseFloat(localStorage.getItem(SPEED_KEY)));
+  } catch (e) {
+    return 1;
+  }
+}
+const fmtSpeed = v => (Math.round(v * 100) / 100).toString().replace(".", ",") + "×";
 function Player({
   day
 }) {
@@ -1151,6 +1180,24 @@ function Player({
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
+  const [speed, setSpeed] = useState(loadSpeed);
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const applySpeed = v => {
+    const s = Math.round(clampSpeed(v) * 100) / 100;
+    setSpeed(s);
+    try {
+      localStorage.setItem(SPEED_KEY, String(s));
+    } catch (e) {}
+  };
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) {
+      try {
+        a.preservesPitch = true;
+        a.playbackRate = speed;
+      } catch (e) {}
+    }
+  }, [speed, src]);
   const loadSrc = resume => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
@@ -1204,6 +1251,10 @@ function Player({
   const onLoaded = () => {
     const a = audioRef.current;
     if (!a) return;
+    try {
+      a.preservesPitch = true;
+      a.playbackRate = speed;
+    } catch (e) {}
     if (isFinite(a.duration)) setDur(a.duration);
     if (resumeAt.current > 0) {
       try {
@@ -1287,7 +1338,35 @@ function Player({
     }
   })), React.createElement("div", {
     className: "seek-time"
-  }, React.createElement("span", null, loading ? "загрузка…" : fmt(t)), React.createElement("span", null, fmt(dur)))));
+  }, React.createElement("span", null, loading ? "загрузка…" : fmt(t)), React.createElement("button", {
+    className: "speed-pill" + (speed !== 1 ? " on" : ""),
+    disabled: loading,
+    onClick: () => setSpeedOpen(v => !v),
+    title: "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F"
+  }, React.createElement(Ico.speed, null), " ", fmtSpeed(speed)), React.createElement("span", null, fmt(dur))), speedOpen && React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "speed-scrim",
+    onClick: () => setSpeedOpen(false)
+  }), React.createElement("div", {
+    className: "speed-pop",
+    role: "dialog",
+    "aria-label": "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0434\u0435\u043D\u0438\u044F"
+  }, React.createElement("div", {
+    className: "speed-pop-head"
+  }, React.createElement("span", null, "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C"), React.createElement("b", null, fmtSpeed(speed))), React.createElement("input", {
+    className: "speed-range",
+    type: "range",
+    min: SPEED_MIN,
+    max: SPEED_MAX,
+    step: "0.05",
+    value: speed,
+    onChange: e => applySpeed(e.target.value)
+  }), React.createElement("div", {
+    className: "speed-chips"
+  }, SPEED_PRESETS.map(p => React.createElement("button", {
+    key: p,
+    className: "speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : ""),
+    onClick: () => applySpeed(p)
+  }, fmtSpeed(p))))))));
 }
 function TaskItem({
   task,

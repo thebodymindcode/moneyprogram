@@ -210,6 +210,7 @@ const Ico = {
   play: (p) => <svg viewBox="0 0 24 24" width="22" height="22" {...p}><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>,
   pause: (p) => <svg viewBox="0 0 24 24" width="22" height="22" {...p}><rect x="7" y="5" width="3.4" height="14" rx="1.2" fill="currentColor"/><rect x="13.6" y="5" width="3.4" height="14" rx="1.2" fill="currentColor"/></svg>,
   wave: (p) => <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M4 12h2M9 8v8M14 5v14M19 9v6"/></svg>,
+  speed: (p) => <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 21a9 9 0 1 0-9-9"/><path d="M12 12l4-3.5"/><path d="M3 12H1.5M5 7l-1-1"/></svg>,
   upload: (p) => <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 16V5M8 9l4-4 4 4"/><path d="M5 19h14"/></svg>,
   out: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 7V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2h6a2 2 0 002-2v-2"/><path d="M18 15l3-3-3-3M21 12H9"/></svg>,
   book: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 4h11a2 2 0 012 2v14H7a2 2 0 01-2-2z"/><path d="M5 4a2 2 0 00-2 2v12a2 2 0 002 2"/><path d="M9 8h6M9 12h6"/></svg>,
@@ -532,6 +533,16 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay }) {
 }
 
 /* ========================= Audio player (настоящее аудио) ========================= */
+const SPEED_KEY = "mp_audio_speed";              // ключ в localStorage для выбранной скорости
+const SPEED_MIN = 0.8, SPEED_MAX = 2;            // границы ползунка
+const SPEED_PRESETS = [1, 1.3, 1.5, 1.8];        // быстрые кнопки, как просили
+const clampSpeed = (v) => Math.min(SPEED_MAX, Math.max(SPEED_MIN, Number(v) || 1));
+function loadSpeed() {
+  try { return clampSpeed(parseFloat(localStorage.getItem(SPEED_KEY))); } catch (e) { return 1; }
+}
+// красивый вид числа: 1× вместо 1.0×, 1,5× в русском стиле
+const fmtSpeed = (v) => (Math.round(v * 100) / 100).toString().replace(".", ",") + "×";
+
 function Player({ day }) {
   const audioRef = useRef(null);
   const barRef = useRef(null);
@@ -543,6 +554,21 @@ function Player({ day }) {
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
+  const [speed, setSpeed] = useState(loadSpeed);   // скорость воспроизведения, общая для всех уроков
+  const [speedOpen, setSpeedOpen] = useState(false); // открыта ли панелька скорости
+
+  // меняем скорость и запоминаем выбор, чтобы держался на всех днях и после перезахода
+  const applySpeed = (v) => {
+    const s = Math.round(clampSpeed(v) * 100) / 100;
+    setSpeed(s);
+    try { localStorage.setItem(SPEED_KEY, String(s)); } catch (e) {}
+  };
+
+  // держим playbackRate в синхроне: при смене скорости и когда появляется новый <audio>
+  useEffect(() => {
+    const a = audioRef.current;
+    if (a) { try { a.preservesPitch = true; a.playbackRate = speed; } catch (e) {} }
+  }, [speed, src]);
 
   // взять (или переполучить) подписанную ссылку. resume = позиция для продолжения
   const loadSrc = (resume) => {
@@ -590,6 +616,7 @@ function Player({ day }) {
   const loading = src === undefined;
   const onLoaded = () => {
     const a = audioRef.current; if (!a) return;
+    try { a.preservesPitch = true; a.playbackRate = speed; } catch (e) {}
     if (isFinite(a.duration)) setDur(a.duration);
     if (resumeAt.current > 0) { try { a.currentTime = resumeAt.current; } catch (e) {} resumeAt.current = 0; }
     if (shouldResume.current) { shouldResume.current = false; a.play().catch(() => {}); }
@@ -642,7 +669,33 @@ function Player({ day }) {
           <i style={{ width: pct + "%" }} />
           <b style={{ left: pct + "%" }} />
         </div>
-        <div className="seek-time"><span>{loading ? "загрузка…" : fmt(t)}</span><span>{fmt(dur)}</span></div>
+        <div className="seek-time">
+          <span>{loading ? "загрузка…" : fmt(t)}</span>
+          <button className={"speed-pill" + (speed !== 1 ? " on" : "")} disabled={loading}
+            onClick={() => setSpeedOpen((v) => !v)} title="Скорость воспроизведения">
+            <Ico.speed /> {fmtSpeed(speed)}
+          </button>
+          <span>{fmt(dur)}</span>
+        </div>
+        {speedOpen && (
+          <>
+            <div className="speed-scrim" onClick={() => setSpeedOpen(false)} />
+            <div className="speed-pop" role="dialog" aria-label="Скорость воспроизведения">
+              <div className="speed-pop-head">
+                <span>Скорость</span><b>{fmtSpeed(speed)}</b>
+              </div>
+              <input className="speed-range" type="range"
+                min={SPEED_MIN} max={SPEED_MAX} step="0.05" value={speed}
+                onChange={(e) => applySpeed(e.target.value)} />
+              <div className="speed-chips">
+                {SPEED_PRESETS.map((p) => (
+                  <button key={p} className={"speed-chip" + (Math.abs(speed - p) < 0.001 ? " sel" : "")}
+                    onClick={() => applySpeed(p)}>{fmtSpeed(p)}</button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
