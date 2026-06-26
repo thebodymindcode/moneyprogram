@@ -771,11 +771,13 @@ function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }
 function StateSlider({ value, onChange }) {
   const [v, setV] = useState(value == null ? 5 : value);
   const [touched, setTouched] = useState(value != null);
-  const commit = () => { setTouched(true); onChange(v); };
+  const [flash, setFlash] = useState(false);
+  const commit = () => { setTouched(true); onChange(v); setFlash(true); setTimeout(() => setFlash(false), 1400); };
   return (
     <div className="state-slider">
       <div className="state-val">
         {touched ? <><b>{v}</b><span> из 10</span></> : <span className="faint">Подвинь, как тебе сейчас</span>}
+        {flash && <span className="saved-flash" style={{ marginLeft: 10 }}>✓ Сохранено</span>}
       </div>
       <input className="state-range" type="range" min="0" max="10" step="1" value={v}
         style={{ "--fill": (v * 10) + "%" }}

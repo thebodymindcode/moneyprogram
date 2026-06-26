@@ -1521,9 +1521,12 @@ function StateSlider({
 }) {
   const [v, setV] = useState(value == null ? 5 : value);
   const [touched, setTouched] = useState(value != null);
+  const [flash, setFlash] = useState(false);
   const commit = () => {
     setTouched(true);
     onChange(v);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1400);
   };
   return React.createElement("div", {
     className: "state-slider"
@@ -1531,7 +1534,12 @@ function StateSlider({
     className: "state-val"
   }, touched ? React.createElement(React.Fragment, null, React.createElement("b", null, v), React.createElement("span", null, " \u0438\u0437 10")) : React.createElement("span", {
     className: "faint"
-  }, "\u041F\u043E\u0434\u0432\u0438\u043D\u044C, \u043A\u0430\u043A \u0442\u0435\u0431\u0435 \u0441\u0435\u0439\u0447\u0430\u0441")), React.createElement("input", {
+  }, "\u041F\u043E\u0434\u0432\u0438\u043D\u044C, \u043A\u0430\u043A \u0442\u0435\u0431\u0435 \u0441\u0435\u0439\u0447\u0430\u0441"), flash && React.createElement("span", {
+    className: "saved-flash",
+    style: {
+      marginLeft: 10
+    }
+  }, "\u2713 \u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E")), React.createElement("input", {
     className: "state-range",
     type: "range",
     min: "0",
