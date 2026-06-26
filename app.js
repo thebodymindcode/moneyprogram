@@ -235,8 +235,8 @@ const STATUS_LABEL = {
 const dayOpenable = status => status === "done" || status === "today" || status === "open";
 function lockLine(status, d, unlockedCount) {
   if (d.id > unlockedCount) return unlockLabel(d.id);
-  if (status === "next") return "Откроется, когда пройдёшь день " + (d.id - 1);
-  return "Откроется по порядку, после предыдущих дней";
+  if (status === "next") return "Откроется сразу после дня " + (d.id - 1);
+  return "Откроется в свой день, идём по шагам";
 }
 const Ico = {
   check: p => React.createElement("svg", _extends({
@@ -321,21 +321,29 @@ const Ico = {
   })),
   lock: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
-    width: "15",
-    height: "15",
+    width: "18",
+    height: "18"
+  }, p), React.createElement("path", {
+    d: "M7 11V8a5 5 0 0110 0v3",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: "2.2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  }, p), React.createElement("rect", {
-    x: "5",
-    y: "11",
-    width: "14",
-    height: "9",
-    rx: "2"
+    strokeWidth: "2.1",
+    strokeLinecap: "round"
+  }), React.createElement("rect", {
+    x: "4.4",
+    y: "10.4",
+    width: "15.2",
+    height: "11.2",
+    rx: "3.6",
+    fill: "currentColor"
+  }), React.createElement("circle", {
+    cx: "12",
+    cy: "14.8",
+    r: "1.7",
+    fill: "#fff"
   }), React.createElement("path", {
-    d: "M8 11V8a4 4 0 018 0v3"
+    d: "M11.2 15.5h1.6l-.42 3a.38.38 0 01-.76 0z",
+    fill: "#fff"
   })),
   play: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
@@ -1124,11 +1132,14 @@ function Dashboard({
     }, React.createElement("div", {
       className: "badge",
       style: bg
-    }, st === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, null)), React.createElement("div", {
+    }, st === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, {
+      width: 19,
+      height: 19
+    })), React.createElement("div", {
       className: "nm"
     }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
-    }, hidden ? "Откроется по порядку" : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
+    }, hidden ? "Откроется в свой день" : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))));
 }
 function DayMap({
@@ -1159,7 +1170,10 @@ function DayMap({
       onClick: () => clickable && onOpenDay(i)
     }, React.createElement("div", {
       className: "dot"
-    }, status === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, null)), React.createElement("div", {
+    }, status === "done" ? React.createElement(Ico.check, null) : clickable ? d.id : React.createElement(Ico.lock, {
+      width: 23,
+      height: 23
+    })), React.createElement("div", {
       className: "body"
     }, React.createElement("div", {
       className: "t"

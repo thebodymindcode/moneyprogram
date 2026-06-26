@@ -208,8 +208,8 @@ const dayOpenable = (status) => status === "done" || status === "today" || statu
 // подпись под закрытым днём: до старта по календарю показываем дату, иначе по порядку прохождения
 function lockLine(status, d, unlockedCount) {
   if (d.id > unlockedCount) return unlockLabel(d.id);
-  if (status === "next") return "Откроется, когда пройдёшь день " + (d.id - 1);
-  return "Откроется по порядку, после предыдущих дней";
+  if (status === "next") return "Откроется сразу после дня " + (d.id - 1);
+  return "Откроется в свой день, идём по шагам";
 }
 
 /* ========================= icons ========================= */
@@ -220,7 +220,7 @@ const Ico = {
   home: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>,
   map: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="17" r="2.2"/><path d="M6 9.2v3.3a3 3 0 003 3h6"/></svg>,
   cog: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5a1.6 1.6 0 00.3 1.7l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1a1.6 1.6 0 00-2.7-1.1l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00-1.1-2.7H3a2 2 0 110-4h.1a1.6 1.6 0 001.1-2.7l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.7.3 1.6 1.6 0 001-1.5V3a2 2 0 114 0v.1a1.6 1.6 0 001 1.5 1.6 1.6 0 001.7-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.7V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.1a1.6 1.6 0 00-1.5 1z"/></svg>,
-  lock: (p) => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>,
+  lock: (p) => <svg viewBox="0 0 24 24" width="18" height="18" {...p}><path d="M7 11V8a5 5 0 0110 0v3" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round"/><rect x="4.4" y="10.4" width="15.2" height="11.2" rx="3.6" fill="currentColor"/><circle cx="12" cy="14.8" r="1.7" fill="#fff"/><path d="M11.2 15.5h1.6l-.42 3a.38.38 0 01-.76 0z" fill="#fff"/></svg>,
   play: (p) => <svg viewBox="0 0 24 24" width="22" height="22" {...p}><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>,
   pause: (p) => <svg viewBox="0 0 24 24" width="22" height="22" {...p}><rect x="7" y="5" width="3.4" height="14" rx="1.2" fill="currentColor"/><rect x="13.6" y="5" width="3.4" height="14" rx="1.2" fill="currentColor"/></svg>,
   wave: (p) => <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M4 12h2M9 8v8M14 5v14M19 9v6"/></svg>,
@@ -504,9 +504,9 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
                 : { background: "#eef1f5", color: "var(--ink-faint)" };
               return (
                 <div key={d.id} className={"card mini " + st} onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .9 }}>
-                  <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock />}</div>
+                  <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={19} height={19} />}</div>
                   <div className="nm">{hidden ? "День " + d.id : d.title}</div>
-                  <div className="du">{hidden ? "Откроется по порядку" : <>🎧 {durLabel(d.duration)}</>}</div>
+                  <div className="du">{hidden ? "Откроется в свой день" : <>🎧 {durLabel(d.duration)}</>}</div>
                 </div>
               );
             })}
@@ -536,7 +536,7 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay, isAdmin }) {
           const hidden = status === "hidden";
           return (
             <div key={d.id} className={"node " + status} onClick={() => clickable && onOpenDay(i)}>
-              <div className="dot">{status === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock />}</div>
+              <div className="dot">{status === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={23} height={23} />}</div>
               <div className="body">
                 <div className="t">{hidden ? "День " + d.id : "День " + d.id + ": " + d.title}</div>
                 {showMeta && <div className="s">🎧 {durLabel(d.duration)} · {d.tasks.length} {taskWord(d.tasks.length)}</div>}
