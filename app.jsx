@@ -806,7 +806,7 @@ function StateSlider({ value, onChange }) {
 }
 
 /* ========================= Day screen ========================= */
-function DayScreen({ day, dayIndex, total, onBack, nextDay, nextReady, nextLabel, onOpenNext, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
+function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, nextLabel, onOpenNext, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
   const [flash, setFlash] = useState(false);
   const [justId, setJustId] = useState(null);
   const [showDone, setShowDone] = useState(false);
@@ -872,28 +872,28 @@ function DayScreen({ day, dayIndex, total, onBack, nextDay, nextReady, nextLabel
             <div style={{ fontWeight: 800, marginTop: 10, fontSize: 17 }}>День {day.id} пройден</div>
             {!nextDay ? (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Это был последний день. Вы прошли весь протокол. Поздравляем.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Это последний день. Вы прошли весь протокол.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={onBack}>На главную</button>
+                <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
               </>
             ) : nextReady ? (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день уже открыт, можно идти дальше.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день уже открыт.</div>
                 <div className="spacer" /><div className="spacer" />
                 <button className="btn btn-primary" onClick={onOpenNext}>Открыть день {day.id + 1} <Ico.chev /></button>
-                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onBack}>На главную</button>
+                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onGoMap}>На карту дней</button>
               </>
             ) : (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день, «{nextDay.title}», {String(nextLabel || "откроется позже").toLowerCase()}, в 8 утра. Один спокойный шаг в день, не торопитесь.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день «{nextDay.title}» {String(nextLabel || "откроется позже").toLowerCase()} в 8:00.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={onBack}>На главную</button>
+                <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
               </>
             )}
           </div>
         : <>
             <button className="btn btn-primary" onClick={onBack}>Сохранить и вернуться</button>
-            <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался. Один спокойный шаг в день, и новая норма закрепляется сама.</div>
+            <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался.</div>
           </>}
     </div>
   );
@@ -1964,6 +1964,7 @@ function App() {
     const nextDay = days[ni] || null;
     const nextReady = !!nextDay && (isAdmin || dayOpenable(dayStatus(nextDay, ni, unlockedCount, currentIndex)));
     content = <DayScreen day={days[openDay]} dayIndex={openDay} total={days.length} onBack={() => setOpenDay(null)}
+      onGoMap={() => goTab("map")}
       nextDay={nextDay} nextReady={nextReady} nextLabel={nextDay ? unlockLabel(nextDay.id) : ""}
       onOpenNext={() => openDayGuarded(ni)}
       onAnswer={(tid, v) => onAnswer(openDay, tid, v)}
