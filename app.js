@@ -124,13 +124,13 @@ async function loadDaysFromDb() {
   const sessRes = await sb.auth.getSession();
   const lsUid = sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user ? sessRes.data.session.user.id : "";
   const lsState = lsUid ? stateLSget(lsUid) : {};
-  const [daysRes, tasksRes, ansRes, notesRes, checkRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
+  const [daysRes, tasksRes, ansRes, notesRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
     ascending: true
   }), sb.from("tasks").select("*").order("day_number", {
     ascending: true
   }).order("position", {
     ascending: true
-  }), sb.from("task_answers").select("*"), sb.from("notes").select("*"), sb.from("checkins").select("*")]);
+  }), sb.from("task_answers").select("*"), sb.from("notes").select("*")]);
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {};
@@ -141,10 +141,6 @@ async function loadDaysFromDb() {
   (notesRes.data || []).forEach(n => {
     noteMap[n.day_number] = n.text;
   });
-  const checkMap = {};
-  (checkRes && checkRes.data || []).forEach(c => {
-    checkMap[c.day_number] = c.value;
-  });
   return (daysRes.data || []).map(d => ({
     id: d.day_number,
     title: d.title,
@@ -153,7 +149,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",
     audioName: d.audio_name || "",
     note: noteMap[d.day_number] || "",
-    state: checkMap[d.day_number] != null ? Number(checkMap[d.day_number]) : lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null,
+    state: lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null,
     tasks: (tasksRes.data || []).filter(t => t.day_number === d.day_number).map(t => ({
       id: t.id,
       text: t.text,
@@ -1608,6 +1604,10 @@ function DayScreen({
   dayIndex,
   total,
   onBack,
+  nextDay,
+  nextReady,
+  nextLabel,
+  onOpenNext,
   onAnswer,
   onAnswerBlur,
   onConfirm,
@@ -1722,20 +1722,55 @@ function DayScreen({
       marginTop: 10,
       fontSize: 17
     }
-  }, "\u0414\u0435\u043D\u044C ", day.id, " \u043F\u0440\u043E\u0439\u0434\u0435\u043D"), React.createElement("div", {
+  }, "\u0414\u0435\u043D\u044C ", day.id, " \u043F\u0440\u043E\u0439\u0434\u0435\u043D"), !nextDay ? React.createElement(React.Fragment, null, React.createElement("div", {
     className: "muted",
     style: {
       fontSize: 13.5,
-      marginTop: 4
+      marginTop: 4,
+      lineHeight: 1.5
     }
-  }, "\u0421\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u0439 \u0448\u0430\u0433 \u0441\u0434\u0435\u043B\u0430\u043D. \u041F\u0440\u043E\u0433\u0440\u0435\u0441\u0441 \u043E\u0431\u043D\u043E\u0432\u0438\u043B\u0441\u044F."), React.createElement("div", {
+  }, "\u042D\u0442\u043E \u0431\u044B\u043B \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0439 \u0434\u0435\u043D\u044C. \u0412\u044B \u043F\u0440\u043E\u0448\u043B\u0438 \u0432\u0435\u0441\u044C \u043F\u0440\u043E\u0442\u043E\u043A\u043E\u043B. \u041F\u043E\u0437\u0434\u0440\u0430\u0432\u043B\u044F\u0435\u043C."), React.createElement("div", {
     className: "spacer"
   }), React.createElement("div", {
     className: "spacer"
   }), React.createElement("button", {
     className: "btn btn-primary",
     onClick: onBack
-  }, dayIndex + 1 < total ? "К следующему дню" : "Завершить протокол")) : React.createElement(React.Fragment, null, React.createElement("button", {
+  }, "\u041D\u0430 \u0433\u043B\u0430\u0432\u043D\u0443\u044E")) : nextReady ? React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "muted",
+    style: {
+      fontSize: 13.5,
+      marginTop: 4,
+      lineHeight: 1.5
+    }
+  }, "\u0421\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u0439 \u0448\u0430\u0433 \u0441\u0434\u0435\u043B\u0430\u043D. \u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C \u0443\u0436\u0435 \u043E\u0442\u043A\u0440\u044B\u0442, \u043C\u043E\u0436\u043D\u043E \u0438\u0434\u0442\u0438 \u0434\u0430\u043B\u044C\u0448\u0435."), React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: onOpenNext
+  }, "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C ", day.id + 1, " ", React.createElement(Ico.chev, null)), React.createElement("button", {
+    className: "btn btn-ghost",
+    style: {
+      marginTop: 10
+    },
+    onClick: onBack
+  }, "\u041D\u0430 \u0433\u043B\u0430\u0432\u043D\u0443\u044E")) : React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "muted",
+    style: {
+      fontSize: 13.5,
+      marginTop: 4,
+      lineHeight: 1.5
+    }
+  }, "\u0421\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u0439 \u0448\u0430\u0433 \u0441\u0434\u0435\u043B\u0430\u043D. \u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C, \xAB", nextDay.title, "\xBB, ", String(nextLabel || "откроется позже").toLowerCase(), ", \u0432 8 \u0443\u0442\u0440\u0430. \u0412\u043E\u0437\u0432\u0440\u0430\u0449\u0430\u0439\u0442\u0435\u0441\u044C \u0437\u0430\u0432\u0442\u0440\u0430, \u043E\u0434\u0438\u043D \u0441\u043F\u043E\u043A\u043E\u0439\u043D\u044B\u0439 \u0448\u0430\u0433 \u0432 \u0434\u0435\u043D\u044C."), React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: onBack
+  }, "\u041D\u0430 \u0433\u043B\u0430\u0432\u043D\u0443\u044E"))) : React.createElement(React.Fragment, null, React.createElement("button", {
     className: "btn btn-primary",
     onClick: onBack
   }, "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0438 \u0432\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F"), React.createElement("div", {
@@ -3186,6 +3221,11 @@ function App() {
     if (!days || !days.length) return 0;
     return computeCurrentIndex(days, unlockedCount);
   }, [days, unlockedCount]);
+  useEffect(() => {
+    const m = document.querySelector(".main");
+    if (m) m.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [openDay, tab]);
   if (!sb) return React.createElement(Splash, {
     text: "\u041D\u0435\u0442 \u043A\u043B\u044E\u0447\u0435\u0439 Supabase",
     sub: "\u0421\u043E\u0437\u0434\u0430\u0439 config.js \u0438\u0437 config.example.js \u0438 \u043E\u0431\u043D\u043E\u0432\u0438 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443."
@@ -3315,11 +3355,18 @@ function App() {
   };
   let content;
   if (openDay !== null) {
+    const ni = openDay + 1;
+    const nextDay = days[ni] || null;
+    const nextReady = !!nextDay && (isAdmin || dayOpenable(dayStatus(nextDay, ni, unlockedCount, currentIndex)));
     content = React.createElement(DayScreen, {
       day: days[openDay],
       dayIndex: openDay,
       total: days.length,
       onBack: () => setOpenDay(null),
+      nextDay: nextDay,
+      nextReady: nextReady,
+      nextLabel: nextDay ? unlockLabel(nextDay.id) : "",
+      onOpenNext: () => openDayGuarded(ni),
       onAnswer: (tid, v) => onAnswer(openDay, tid, v),
       onAnswerBlur: tid => onAnswerBlur(openDay, tid),
       onConfirm: tid => onConfirm(openDay, tid),

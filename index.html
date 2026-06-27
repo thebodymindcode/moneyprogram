@@ -40,6 +40,10 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- быстрее устанавливаем соединения с библиотеками и базой, чтобы загрузка не висела на холодном коннекте -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="preconnect" href="https://cxqlkwwciveobhmsdpgq.supabase.co" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=4837dca0" />
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -52,6 +56,6 @@
   <script src="appConfig.js?v=864bb0dc"></script>
   <script src="supabaseClient.js"></script>
   <!-- app.js собирается из app.jsx скриптом build.py (Babel больше не грузится в браузере) -->
-  <script src="app.js?v=b4a9004b"></script>
+  <script src="app.js?v=35297927"></script>
 </body>
 </html>

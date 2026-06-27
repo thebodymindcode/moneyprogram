@@ -105,18 +105,16 @@ async function loadDaysFromDb() {
   const sessRes = await sb.auth.getSession();
   const lsUid = (sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user) ? sessRes.data.session.user.id : "";
   const lsState = lsUid ? stateLSget(lsUid) : {};
-  const [daysRes, tasksRes, ansRes, notesRes, checkRes] = await Promise.all([
+  const [daysRes, tasksRes, ansRes, notesRes] = await Promise.all([
     sb.from("days").select("*").order("day_number", { ascending: true }),
     sb.from("tasks").select("*").order("day_number", { ascending: true }).order("position", { ascending: true }),
     sb.from("task_answers").select("*"),
     sb.from("notes").select("*"),
-    sb.from("checkins").select("*"),                 // отметки состояния (таблицы может не быть, тогда тихо пусто)
   ]);
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {}; (ansRes.data || []).forEach((a) => { ansMap[a.task_id] = a; });
   const noteMap = {}; (notesRes.data || []).forEach((n) => { noteMap[n.day_number] = n.text; });
-  const checkMap = {}; ((checkRes && checkRes.data) || []).forEach((c) => { checkMap[c.day_number] = c.value; });
   return (daysRes.data || []).map((d) => ({
     id: d.day_number,
     title: d.title,
@@ -125,8 +123,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",                 // путь к файлу в Storage
     audioName: d.audio_name || "",                // имя файла для показа в админке
     note: noteMap[d.day_number] || "",
-    state: (checkMap[d.day_number] != null ? Number(checkMap[d.day_number])           // 0 тревога … 10 спокойствие
-            : (lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null)), // из базы, иначе с устройства
+    state: (lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null),     // 0 тревога … 10 спокойствие, с устройства
     tasks: (tasksRes.data || [])
       .filter((t) => t.day_number === d.day_number)
       .map((t) => ({
@@ -800,7 +797,7 @@ function StateSlider({ value, onChange }) {
 }
 
 /* ========================= Day screen ========================= */
-function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
+function DayScreen({ day, dayIndex, total, onBack, nextDay, nextReady, nextLabel, onOpenNext, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
   const [flash, setFlash] = useState(false);
   const [justId, setJustId] = useState(null);
   const [showDone, setShowDone] = useState(false);
@@ -864,9 +861,26 @@ function DayScreen({ day, dayIndex, total, onBack, onAnswer, onAnswerBlur, onCon
         ? <div className={"card day-done-card" + (showDone ? " pop" : "")}>
             <div className="dd-check"><Ico.check /></div>
             <div style={{ fontWeight: 800, marginTop: 10, fontSize: 17 }}>День {day.id} пройден</div>
-            <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Спокойный шаг сделан. Прогресс обновился.</div>
-            <div className="spacer" /><div className="spacer" />
-            <button className="btn btn-primary" onClick={onBack}>{dayIndex + 1 < total ? "К следующему дню" : "Завершить протокол"}</button>
+            {!nextDay ? (
+              <>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Это был последний день. Вы прошли весь протокол. Поздравляем.</div>
+                <div className="spacer" /><div className="spacer" />
+                <button className="btn btn-primary" onClick={onBack}>На главную</button>
+              </>
+            ) : nextReady ? (
+              <>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день уже открыт, можно идти дальше.</div>
+                <div className="spacer" /><div className="spacer" />
+                <button className="btn btn-primary" onClick={onOpenNext}>Открыть день {day.id + 1} <Ico.chev /></button>
+                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onBack}>На главную</button>
+              </>
+            ) : (
+              <>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день, «{nextDay.title}», {String(nextLabel || "откроется позже").toLowerCase()}, в 8 утра. Возвращайтесь завтра, один спокойный шаг в день.</div>
+                <div className="spacer" /><div className="spacer" />
+                <button className="btn btn-primary" onClick={onBack}>На главную</button>
+              </>
+            )}
           </div>
         : <>
             <button className="btn btn-primary" onClick={onBack}>Сохранить и вернуться</button>
@@ -1849,6 +1863,13 @@ function App() {
     return computeCurrentIndex(days, unlockedCount);
   }, [days, unlockedCount]);
 
+  // при переходе между днями и разделами прокручиваем наверх, чтобы не оставаться внизу
+  useEffect(() => {
+    const m = document.querySelector(".main");
+    if (m) m.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }, [openDay, tab]);
+
   // экраны-заглушки до готовности приложения
   if (!sb) return <Splash text="Нет ключей Supabase" sub="Создай config.js из config.example.js и обнови страницу." />;
   if (session === undefined) return <Splash text="Загрузка…" />;
@@ -1917,7 +1938,12 @@ function App() {
 
   let content;
   if (openDay !== null) {
+    const ni = openDay + 1;
+    const nextDay = days[ni] || null;
+    const nextReady = !!nextDay && (isAdmin || dayOpenable(dayStatus(nextDay, ni, unlockedCount, currentIndex)));
     content = <DayScreen day={days[openDay]} dayIndex={openDay} total={days.length} onBack={() => setOpenDay(null)}
+      nextDay={nextDay} nextReady={nextReady} nextLabel={nextDay ? unlockLabel(nextDay.id) : ""}
+      onOpenNext={() => openDayGuarded(ni)}
       onAnswer={(tid, v) => onAnswer(openDay, tid, v)}
       onAnswerBlur={(tid) => onAnswerBlur(openDay, tid)}
       onConfirm={(tid) => onConfirm(openDay, tid)}
