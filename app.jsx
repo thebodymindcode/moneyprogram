@@ -876,7 +876,7 @@ function DayScreen({ day, dayIndex, total, onBack, nextDay, nextReady, nextLabel
               </>
             ) : (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день, «{nextDay.title}», {String(nextLabel || "откроется позже").toLowerCase()}, в 8 утра. Возвращайтесь завтра, один спокойный шаг в день.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Спокойный шаг сделан. Следующий день, «{nextDay.title}», {String(nextLabel || "откроется позже").toLowerCase()}, в 8 утра. Один спокойный шаг в день, не торопитесь.</div>
                 <div className="spacer" /><div className="spacer" />
                 <button className="btn btn-primary" onClick={onBack}>На главную</button>
               </>
