@@ -120,6 +120,20 @@ function stateLSset(uid, dn, val) {
     localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m));
   } catch (e) {}
 }
+const DAYS_CACHE = "mp_days_v1";
+function readDaysCache(uid) {
+  try {
+    const r = JSON.parse(localStorage.getItem(DAYS_CACHE + ":" + uid));
+    return Array.isArray(r) && r.length ? r : null;
+  } catch (e) {
+    return null;
+  }
+}
+function writeDaysCache(uid, days) {
+  try {
+    if (Array.isArray(days) && days.length) localStorage.setItem(DAYS_CACHE + ":" + uid, JSON.stringify(days));
+  } catch (e) {}
+}
 async function loadDaysFromDb() {
   const sessRes = await sb.auth.getSession();
   const lsUid = sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user ? sessRes.data.session.user.id : "";
@@ -3184,11 +3198,12 @@ function App() {
     };
   }, []);
   const reload = async () => {
-    setLoadErr("");
     try {
-      setDays(await loadDaysFromDb());
+      const d = await loadDaysFromDb();
+      setDays(d);
+      setLoadErr("");
     } catch (e) {
-      setDays([]);
+      setDays(cur => cur && cur.length ? cur : []);
       setLoadErr(e && e.message || "Не удалось загрузить данные.");
     }
   };
@@ -3197,6 +3212,8 @@ function App() {
       const uid = session.user.id;
       if (loadedUid.current === uid) return;
       loadedUid.current = uid;
+      const cached = readDaysCache(uid);
+      if (cached) setDays(cached);
       reload();
       sb.from("profiles").select("name,email").eq("id", uid).maybeSingle().then(({
         data
@@ -3226,6 +3243,9 @@ function App() {
     if (m) m.scrollTo(0, 0);
     window.scrollTo(0, 0);
   }, [openDay, tab]);
+  useEffect(() => {
+    if (session && days && days.length) writeDaysCache(session.user.id, days);
+  }, [days, session]);
   if (!sb) return React.createElement(Splash, {
     text: "\u041D\u0435\u0442 \u043A\u043B\u044E\u0447\u0435\u0439 Supabase",
     sub: "\u0421\u043E\u0437\u0434\u0430\u0439 config.js \u0438\u0437 config.example.js \u0438 \u043E\u0431\u043D\u043E\u0432\u0438 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443."
@@ -3237,7 +3257,7 @@ function App() {
   if (days === null) return React.createElement(Splash, {
     text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u043A\u0443\u0440\u0441\u2026"
   });
-  if (loadErr) return React.createElement(Splash, {
+  if (loadErr && (!days || !days.length)) return React.createElement(Splash, {
     text: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0434\u043D\u0438",
     sub: "Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr,
     onLogout: () => sb.auth.signOut()

@@ -101,6 +101,15 @@ const STATE_LS = "mp_state";
 function stateLSget(uid) { try { return JSON.parse(localStorage.getItem(STATE_LS + ":" + uid)) || {}; } catch (e) { return {}; } }
 function stateLSset(uid, dn, val) { try { const m = stateLSget(uid); m[dn] = val; localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m)); } catch (e) {} }
 
+// кеш дней для мгновенной загрузки (stale-while-revalidate): показываем сразу, обновляем в фоне
+const DAYS_CACHE = "mp_days_v1";
+function readDaysCache(uid) {
+  try { const r = JSON.parse(localStorage.getItem(DAYS_CACHE + ":" + uid)); return (Array.isArray(r) && r.length) ? r : null; } catch (e) { return null; }
+}
+function writeDaysCache(uid, days) {
+  try { if (Array.isArray(days) && days.length) localStorage.setItem(DAYS_CACHE + ":" + uid, JSON.stringify(days)); } catch (e) {}
+}
+
 async function loadDaysFromDb() {
   const sessRes = await sb.auth.getSession();
   const lsUid = (sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user) ? sessRes.data.session.user.id : "";
@@ -1835,9 +1844,14 @@ function App() {
   }, []);
 
   const reload = async () => {
-    setLoadErr("");
-    try { setDays(await loadDaysFromDb()); }
-    catch (e) { setDays([]); setLoadErr((e && e.message) || "Не удалось загрузить данные."); }
+    try {
+      const d = await loadDaysFromDb();
+      setDays(d);
+      setLoadErr("");
+    } catch (e) {
+      setDays((cur) => (cur && cur.length ? cur : []));   // есть кеш, оставляем рабочий UI
+      setLoadErr((e && e.message) || "Не удалось загрузить данные.");
+    }
   };
 
   // загрузка контента и профиля. Грузим один раз на пользователя, чтобы повторные
@@ -1847,7 +1861,9 @@ function App() {
       const uid = session.user.id;
       if (loadedUid.current === uid) return;
       loadedUid.current = uid;
-      reload();
+      const cached = readDaysCache(uid);
+      if (cached) setDays(cached);          // мгновенно из кеша, без «Загружаю курс…»
+      reload();                             // свежие данные подтягиваем в фоне
       sb.from("profiles").select("name,email").eq("id", uid).maybeSingle()
         .then(({ data }) => setProfile(data || { name: (session.user.user_metadata && session.user.user_metadata.name) || "", email: session.user.email }));
       sb.rpc("is_admin").then(({ data }) => setIsAdmin(!!data)).catch(() => setIsAdmin(false));
@@ -1870,12 +1886,18 @@ function App() {
     window.scrollTo(0, 0);
   }, [openDay, tab]);
 
+  // держим кеш дней в синхроне с текущим состоянием (включая отметки и ответы),
+  // чтобы следующий заход показывал самое свежее мгновенно
+  useEffect(() => {
+    if (session && days && days.length) writeDaysCache(session.user.id, days);
+  }, [days, session]);
+
   // экраны-заглушки до готовности приложения
   if (!sb) return <Splash text="Нет ключей Supabase" sub="Создай config.js из config.example.js и обнови страницу." />;
   if (session === undefined) return <Splash text="Загрузка…" />;
   if (!session) return <Auth />;
   if (days === null) return <Splash text="Загружаю курс…" />;
-  if (loadErr) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;
+  if (loadErr && (!days || !days.length)) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;
   if (!days.length) return <Splash text="В базе пока нет дней" sub="Запусти раздел наполнения в supabase/schema.sql, затем обнови страницу." onLogout={() => sb.auth.signOut()} />;
 
   const uid = session.user.id;
