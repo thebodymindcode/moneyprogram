@@ -509,7 +509,8 @@ button { font-family: inherit; }
 .state-ends { display: flex; justify-content: space-between; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--ink-faint); }
 
 /* график состояния на дашборде */
-.state-chart .sc-empty { font-size: 13.5px; color: var(--ink-faint); line-height: 1.5; margin-top: 10px; }
+.state-chart .sc-desc { font-size: 13px; color: var(--ink-soft); line-height: 1.55; margin-top: 8px; }
+.state-chart .sc-empty { font-size: 13.5px; color: var(--ink-faint); line-height: 1.5; margin-top: 12px; }
 .sc-head { display: flex; align-items: center; gap: 8px; margin: 9px 0 8px; flex-wrap: wrap; }
 .sc-big { font-size: 30px; font-weight: 800; color: var(--ink-faint); font-variant-numeric: tabular-nums; line-height: 1; }
 .sc-big.now { color: var(--steel); }
