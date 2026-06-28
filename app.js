@@ -244,16 +244,16 @@ function unlockLabel(dayNumber) {
   return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
 }
 function computeCurrentIndex(days, unlockedCount) {
-  for (let i = 0; i < days.length; i++) {
-    if (i + 1 <= unlockedCount && !isDayDone(days[i])) return i;
-  }
   return Math.max(0, Math.min(days.length - 1, unlockedCount - 1));
 }
 function dayStatus(d, i, unlockedCount, currentIndex, isAdmin) {
-  if (isDayDone(d)) return "done";
-  if (i <= currentIndex) return i + 1 <= unlockedCount || isAdmin ? "today" : "next";
-  if (isAdmin) return "open";
-  if (i === currentIndex + 1) return "next";
+  const unlocked = i + 1 <= unlockedCount;
+  if (unlocked || isAdmin) {
+    if (isDayDone(d)) return "done";
+    if (unlocked && i === unlockedCount - 1) return "today";
+    return "open";
+  }
+  if (i === unlockedCount) return "next";
   return "hidden";
 }
 const STATUS_LABEL = {

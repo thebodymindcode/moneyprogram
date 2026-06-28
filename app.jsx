@@ -198,24 +198,27 @@ function unlockLabel(dayNumber) {
   const local = new Date(startInstant() + (dayNumber - 1) * DAY_MS + (c.TZ_OFFSET_HOURS || 0) * 3600000);
   return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
 }
-// первый невыполненный среди открытых дней (это и есть «сегодня»)
+// «сегодня» для дашборда: самый свежий открытый по календарю день (на нём фокус и кнопка «Открыть день»)
 function computeCurrentIndex(days, unlockedCount) {
-  for (let i = 0; i < days.length; i++) {
-    if (i + 1 <= unlockedCount && !isDayDone(days[i])) return i;
-  }
   return Math.max(0, Math.min(days.length - 1, unlockedCount - 1));
 }
-// статус дня. Доступ строго по порядку: открыть можно только пройденные дни и сегодняшний.
+// статус дня. Доступ ТОЛЬКО по календарю: день открывается в свою дату и дальше доступен всегда.
+// Прохождение предыдущих дней на доступ НЕ влияет: пропустил день, следующий всё равно откроется,
+// идти можно в своём темпе и перескакивать. Виден максимум один день вперёд (по названию), дальше скрыто.
 // done   — пройден (можно вернуться)
-// today  — сегодняшний, открыт
-// next   — следующий: видно название, минуты и число заданий, но пока закрыт
+// today  — самый свежий открытый день
+// open   — открыт по календарю ранее, доступен (в том числе пропущенный)
+// next   — ровно один день вперёд: видно название и метки, но открывается в свою дату
 // hidden — дальше по программе: название и тема спрятаны, чтобы не забегать вперёд
 // isAdmin: админу всё открыто и видно (для проверки уроков)
 function dayStatus(d, i, unlockedCount, currentIndex, isAdmin) {
-  if (isDayDone(d)) return "done";
-  if (i <= currentIndex) return (i + 1 <= unlockedCount || isAdmin) ? "today" : "next";
-  if (isAdmin) return "open";                 // админ: все остальные дни доступны
-  if (i === currentIndex + 1) return "next";
+  const unlocked = i + 1 <= unlockedCount;
+  if (unlocked || isAdmin) {
+    if (isDayDone(d)) return "done";
+    if (unlocked && i === unlockedCount - 1) return "today";   // новейший открытый день
+    return "open";                                             // доступен (открыт ранее или админу)
+  }
+  if (i === unlockedCount) return "next";       // один день вперёд: виден названием, ждёт своей даты
   return "hidden";
 }
 const STATUS_LABEL = { done: "Пройден", today: "Сегодня", open: "Доступен", next: "Следующий", hidden: "Закрыто" };
