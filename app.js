@@ -120,7 +120,7 @@ function stateLSset(uid, dn, val) {
     localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m));
   } catch (e) {}
 }
-const DAYS_CACHE = "mp_days_v1";
+const DAYS_CACHE = "mp_days_v2";
 function readDaysCache(uid) {
   try {
     const r = JSON.parse(localStorage.getItem(DAYS_CACHE + ":" + uid));
@@ -135,9 +135,6 @@ function writeDaysCache(uid, days) {
   } catch (e) {}
 }
 async function loadDaysFromDb() {
-  const sessRes = await sb.auth.getSession();
-  const lsUid = sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user ? sessRes.data.session.user.id : "";
-  const lsState = lsUid ? stateLSget(lsUid) : {};
   const [daysRes, tasksRes, ansRes, notesRes, ciRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
     ascending: true
   }), sb.from("tasks").select("*").order("day_number", {
@@ -155,13 +152,10 @@ async function loadDaysFromDb() {
   (notesRes.data || []).forEach(n => {
     noteMap[n.day_number] = n.text;
   });
-  const ciMap = ciRes && !ciRes.error && Array.isArray(ciRes.data) ? (() => {
-    const m = {};
-    ciRes.data.forEach(c => {
-      m[c.day_number] = c.value;
-    });
-    return m;
-  })() : null;
+  const ciMap = {};
+  if (ciRes && !ciRes.error && Array.isArray(ciRes.data)) ciRes.data.forEach(c => {
+    ciMap[c.day_number] = c.value;
+  });
   return (daysRes.data || []).map(d => ({
     id: d.day_number,
     title: d.title,
@@ -170,7 +164,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",
     audioName: d.audio_name || "",
     note: noteMap[d.day_number] || "",
-    state: lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null,
+    state: ciMap[d.day_number] != null ? Number(ciMap[d.day_number]) : null,
     tasks: (tasksRes.data || []).filter(t => t.day_number === d.day_number).map(t => ({
       id: t.id,
       text: t.text,
@@ -3365,7 +3359,6 @@ function App() {
       ...d,
       state: value
     }));
-    stateLSset(uid, days[di].id, value);
     try {
       sb.from("checkins").upsert({
         user_id: uid,

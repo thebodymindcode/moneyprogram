@@ -103,7 +103,7 @@ function stateLSget(uid) { try { return JSON.parse(localStorage.getItem(STATE_LS
 function stateLSset(uid, dn, val) { try { const m = stateLSget(uid); m[dn] = val; localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m)); } catch (e) {} }
 
 // кеш дней для мгновенной загрузки (stale-while-revalidate): показываем сразу, обновляем в фоне
-const DAYS_CACHE = "mp_days_v1";
+const DAYS_CACHE = "mp_days_v2";
 function readDaysCache(uid) {
   try { const r = JSON.parse(localStorage.getItem(DAYS_CACHE + ":" + uid)); return (Array.isArray(r) && r.length) ? r : null; } catch (e) { return null; }
 }
@@ -112,9 +112,6 @@ function writeDaysCache(uid, days) {
 }
 
 async function loadDaysFromDb() {
-  const sessRes = await sb.auth.getSession();
-  const lsUid = (sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user) ? sessRes.data.session.user.id : "";
-  const lsState = lsUid ? stateLSget(lsUid) : {};
   const [daysRes, tasksRes, ansRes, notesRes, ciRes] = await Promise.all([
     sb.from("days").select("*").order("day_number", { ascending: true }),
     sb.from("tasks").select("*").order("day_number", { ascending: true }).order("position", { ascending: true }),
@@ -126,11 +123,10 @@ async function loadDaysFromDb() {
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {}; (ansRes.data || []).forEach((a) => { ansMap[a.task_id] = a; });
   const noteMap = {}; (notesRes.data || []).forEach((n) => { noteMap[n.day_number] = n.text; });
-  // отметки состояния: если таблица checkins есть (нет ошибки), она источник правды и сбрасывается через базу;
-  // если таблицы ещё нет, мягко откатываемся на отметки с устройства, чтобы ничего не сломать
-  const ciMap = (ciRes && !ciRes.error && Array.isArray(ciRes.data))
-    ? (() => { const m = {}; ciRes.data.forEach((c) => { m[c.day_number] = c.value; }); return m; })()
-    : null;
+  // отметки состояния ТОЛЬКО из базы (мультидевайс): память устройства не читаем.
+  // нет таблицы или нет отметки → пусто, чтобы график был одинаков на всех устройствах и сбрасывался через базу
+  const ciMap = {};
+  if (ciRes && !ciRes.error && Array.isArray(ciRes.data)) ciRes.data.forEach((c) => { ciMap[c.day_number] = c.value; });
   return (daysRes.data || []).map((d) => ({
     id: d.day_number,
     title: d.title,
@@ -139,7 +135,7 @@ async function loadDaysFromDb() {
     audioPath: d.audio_url || "",                 // путь к файлу в Storage
     audioName: d.audio_name || "",                // имя файла для показа в админке
     note: noteMap[d.day_number] || "",
-    state: (lsState[d.day_number] != null ? Number(lsState[d.day_number]) : null),     // 0 тревога … 10 спокойствие, с устройства
+    state: (ciMap[d.day_number] != null ? Number(ciMap[d.day_number]) : null),     // 0 тревога … 10 спокойствие, из базы
     tasks: (tasksRes.data || [])
       .filter((t) => t.day_number === d.day_number)
       .map((t) => ({
@@ -1958,9 +1954,8 @@ function App() {
     persist(sb.from("notes").upsert({ user_id: uid, day_number: days[di].id, text: v, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "заметку");
   };
   const onState = (di, value) => {
-    setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));
-    stateLSset(uid, days[di].id, value);                       // на устройстве: всегда надёжно
-    // по-тихому в базу, если таблица checkins есть; ошибку НЕ показываем (баннера не будет)
+    setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));   // мгновенно в интерфейсе
+    // источник правды — база (мультидевайс). Ошибку не показываем баннером.
     try { sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }).then(() => {}, () => {}); } catch (e) {}
   };
 
