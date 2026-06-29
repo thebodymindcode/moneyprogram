@@ -1802,6 +1802,16 @@ function BottomNav({ tab, setTab, isAdmin }) {
   );
 }
 
+/* Мобильная шапка: бренд слева, понятная кнопка «Выйти» справа. На десктопе выход в сайдбаре. */
+function MobileTopBar({ onLogout }) {
+  return (
+    <div className="mobile-topbar">
+      <div className="mtb-brand"><div className="mtb-mark">₽</div><span>Протокол денег</span></div>
+      <button className="mtb-logout" onClick={onLogout}><Ico.out /> Выйти</button>
+    </div>
+  );
+}
+
 /* ========================= Splash / служебные экраны ========================= */
 function Splash({ text, sub, onLogout }) {
   return (
@@ -1997,7 +2007,10 @@ function App() {
       {saveErr && <div className="save-banner">{saveErr}</div>}
       <Sidebar tab={tab} setTab={goTab} onLogout={logout} profile={profile} isAdmin={isAdmin} />
       <main className="main">
-        <div className="content">{content}</div>
+        <div className="content">
+          <MobileTopBar onLogout={logout} />
+          {content}
+        </div>
       </main>
       <BottomNav tab={tab} setTab={goTab} isAdmin={isAdmin} />
     </div>

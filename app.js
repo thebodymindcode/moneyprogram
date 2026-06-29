@@ -3131,6 +3131,20 @@ function BottomNav({
     onClick: () => setTab(it.k)
   }, React.createElement(it.icon, null), " ", it.short)));
 }
+function MobileTopBar({
+  onLogout
+}) {
+  return React.createElement("div", {
+    className: "mobile-topbar"
+  }, React.createElement("div", {
+    className: "mtb-brand"
+  }, React.createElement("div", {
+    className: "mtb-mark"
+  }, "\u20BD"), React.createElement("span", null, "\u041F\u0440\u043E\u0442\u043E\u043A\u043E\u043B \u0434\u0435\u043D\u0435\u0433")), React.createElement("button", {
+    className: "mtb-logout",
+    onClick: onLogout
+  }, React.createElement(Ico.out, null), " \u0412\u044B\u0439\u0442\u0438"));
+}
 function Splash({
   text,
   sub,
@@ -3458,7 +3472,9 @@ function App() {
     className: "main"
   }, React.createElement("div", {
     className: "content"
-  }, content)), React.createElement(BottomNav, {
+  }, React.createElement(MobileTopBar, {
+    onLogout: logout
+  }), content)), React.createElement(BottomNav, {
     tab: tab,
     setTab: goTab,
     isAdmin: isAdmin
