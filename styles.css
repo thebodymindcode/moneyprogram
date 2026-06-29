@@ -633,26 +633,19 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 /* ============================================================
    Нижняя навигация (телефон)
    ============================================================ */
-/* ---- Мобильная шапка с выходом (на десктопе скрыта, выход в сайдбаре) ---- */
-.mobile-topbar { display: none; }
+/* ---- Кнопка «Выйти» внизу главного экрана (только мобильный; на десктопе выход в сайдбаре) ---- */
+.mobile-logout { display: none; }
 @media (max-width: 899px) {
-  .mobile-topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .mobile-logout { display: flex; justify-content: center; margin-top: 30px; }
 }
-.mtb-brand { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 800; letter-spacing: -.02em; min-width: 0; }
-.mtb-brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mtb-mark {
-  width: 31px; height: 31px; flex: none; border-radius: 9px; display: grid; place-items: center;
-  font-size: 16px; font-weight: 800; color: #fff;
-  background: linear-gradient(160deg, var(--steel-2), #18222e); box-shadow: var(--bevel);
+.ml-btn {
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-faint);
+  background: transparent; border: 1px solid var(--line); border-radius: 999px;
+  padding: 10px 20px;
 }
-.mtb-logout {
-  flex: none; display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
-  font-size: 13.5px; font-weight: 700; color: var(--ink-soft);
-  background: var(--surface); border: 1px solid var(--silver-3); border-radius: 999px;
-  padding: 8px 15px; box-shadow: var(--bevel);
-}
-.mtb-logout:active { transform: scale(.98); }
-.mtb-logout svg { width: 17px; height: 17px; }
+.ml-btn:active { transform: scale(.98); background: rgba(0,0,0,.03); }
+.ml-btn svg { width: 16px; height: 16px; opacity: .8; }
 
 .bottomnav {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 60;

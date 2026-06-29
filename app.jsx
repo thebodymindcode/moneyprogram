@@ -442,7 +442,7 @@ function StateChart({ days }) {
 }
 
 /* ========================= Dashboard ========================= */
-function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, userName, isAdmin }) {
+function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, userName, isAdmin, onLogout }) {
   const done = days.filter(isDayDone).length;
   const streak = (() => { let s = 0; for (const d of days) { if (isDayDone(d)) s++; else break; } return s; })();
   const pct = Math.round((done / days.length) * 100);
@@ -570,6 +570,9 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
             })}
           </div>
         </div>
+      </div>
+      <div className="mobile-logout">
+        <button className="ml-btn" onClick={onLogout}><Ico.out /> Выйти из аккаунта</button>
       </div>
     </div>
   );
@@ -1809,16 +1812,6 @@ function BottomNav({ tab, setTab, isAdmin }) {
   );
 }
 
-/* Мобильная шапка: бренд слева, понятная кнопка «Выйти» справа. На десктопе выход в сайдбаре. */
-function MobileTopBar({ onLogout }) {
-  return (
-    <div className="mobile-topbar">
-      <div className="mtb-brand"><div className="mtb-mark">₽</div><span>Протокол денег</span></div>
-      <button className="mtb-logout" onClick={onLogout}><Ico.out /> Выйти</button>
-    </div>
-  );
-}
-
 /* ========================= Splash / служебные экраны ========================= */
 function Splash({ text, sub, onLogout }) {
   return (
@@ -1994,7 +1987,7 @@ function App() {
       onEdit={(tid) => onEdit(openDay, tid)}
       onNote={(v) => onNote(openDay, v)} onState={(v) => onState(openDay, v)} />;
   } else if (tab === "dashboard") {
-    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} />;
+    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} onLogout={logout} />;
   } else if (tab === "map") {
     content = <DayMap days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} isAdmin={isAdmin} />;
   } else if (tab === "diary") {
@@ -2006,7 +1999,7 @@ function App() {
   } else if (tab === "admin" && isAdmin) {
     content = <Admin days={days} setDays={setDays} onReload={reload} />;
   } else {
-    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} />;
+    content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} onLogout={logout} />;
   }
 
   return (
@@ -2014,10 +2007,7 @@ function App() {
       {saveErr && <div className="save-banner">{saveErr}</div>}
       <Sidebar tab={tab} setTab={goTab} onLogout={logout} profile={profile} isAdmin={isAdmin} />
       <main className="main">
-        <div className="content">
-          <MobileTopBar onLogout={logout} />
-          {content}
-        </div>
+        <div className="content">{content}</div>
       </main>
       <BottomNav tab={tab} setTab={goTab} isAdmin={isAdmin} />
     </div>

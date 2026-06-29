@@ -1090,7 +1090,8 @@ function Dashboard({
   onOpenDay,
   onGoDiary,
   userName,
-  isAdmin
+  isAdmin,
+  onLogout
 }) {
   const done = days.filter(isDayDone).length;
   const streak = (() => {
@@ -1283,7 +1284,12 @@ function Dashboard({
     }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
     }, hidden ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
-  })))));
+  })))), React.createElement("div", {
+    className: "mobile-logout"
+  }, React.createElement("button", {
+    className: "ml-btn",
+    onClick: onLogout
+  }, React.createElement(Ico.out, null), " \u0412\u044B\u0439\u0442\u0438 \u0438\u0437 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430")));
 }
 function DayMap({
   days,
@@ -3138,20 +3144,6 @@ function BottomNav({
     onClick: () => setTab(it.k)
   }, React.createElement(it.icon, null), " ", it.short)));
 }
-function MobileTopBar({
-  onLogout
-}) {
-  return React.createElement("div", {
-    className: "mobile-topbar"
-  }, React.createElement("div", {
-    className: "mtb-brand"
-  }, React.createElement("div", {
-    className: "mtb-mark"
-  }, "\u20BD"), React.createElement("span", null, "\u041F\u0440\u043E\u0442\u043E\u043A\u043E\u043B \u0434\u0435\u043D\u0435\u0433")), React.createElement("button", {
-    className: "mtb-logout",
-    onClick: onLogout
-  }, React.createElement(Ico.out, null), " \u0412\u044B\u0439\u0442\u0438"));
-}
 function Splash({
   text,
   sub,
@@ -3427,7 +3419,8 @@ function App() {
       onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
       userName: profile && profile.name && profile.name.trim() || "",
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      onLogout: logout
     });
   } else if (tab === "map") {
     content = React.createElement(DayMap, {
@@ -3462,7 +3455,8 @@ function App() {
       onOpenDay: openDayGuarded,
       onGoDiary: () => goTab("diary"),
       userName: profile && profile.name && profile.name.trim() || "",
-      isAdmin: isAdmin
+      isAdmin: isAdmin,
+      onLogout: logout
     });
   }
   return React.createElement("div", {
@@ -3479,9 +3473,7 @@ function App() {
     className: "main"
   }, React.createElement("div", {
     className: "content"
-  }, React.createElement(MobileTopBar, {
-    onLogout: logout
-  }), content)), React.createElement(BottomNav, {
+  }, content)), React.createElement(BottomNav, {
     tab: tab,
     setTab: goTab,
     isAdmin: isAdmin
