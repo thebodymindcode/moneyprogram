@@ -1300,7 +1300,6 @@ function DayMap({
     const clickable = dayOpenable(status);
     const showMeta = clickable || status === "next";
     const hidden = status === "hidden";
-    const titleHidden = hidden && i !== unlockedCount + 1;
     return React.createElement("div", {
       key: d.id,
       className: "node " + status,
@@ -1314,7 +1313,7 @@ function DayMap({
       className: "body"
     }, React.createElement("div", {
       className: "t"
-    }, titleHidden ? "День " + d.id : "День " + d.id + ": " + d.title), showMeta && React.createElement("div", {
+    }, hidden ? "День " + d.id : "День " + d.id + ": " + d.title), showMeta && React.createElement("div", {
       className: "s"
     }, "\uD83C\uDFA7 ", durLabel(d.duration), " \xB7 ", d.tasks.length, " ", taskWord(d.tasks.length)), !clickable && React.createElement("div", {
       className: "lockhint"

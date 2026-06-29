@@ -585,13 +585,11 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay, isAdmin }) {
           const clickable = dayOpenable(status);
           const showMeta = clickable || status === "next";   // минуты и задания видны до следующего дня включительно
           const hidden = status === "hidden";
-          // вперёд видно заголовки двух дней: «следующий» и ещё один за ним (закрыт, но тема видна)
-          const titleHidden = hidden && i !== unlockedCount + 1;
           return (
             <div key={d.id} className={"node " + status} onClick={() => clickable && onOpenDay(i)}>
               <div className="dot">{status === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={23} height={23} />}</div>
               <div className="body">
-                <div className="t">{titleHidden ? "День " + d.id : "День " + d.id + ": " + d.title}</div>
+                <div className="t">{hidden ? "День " + d.id : "День " + d.id + ": " + d.title}</div>
                 {showMeta && <div className="s">🎧 {durLabel(d.duration)} · {d.tasks.length} {taskWord(d.tasks.length)}</div>}
                 {!clickable && <div className="lockhint"><Ico.lock /> {lockLine(status, d, unlockedCount)}</div>}
               </div>
