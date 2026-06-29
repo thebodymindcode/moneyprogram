@@ -138,13 +138,13 @@ async function loadDaysFromDb() {
   const sessRes = await sb.auth.getSession();
   const lsUid = sessRes && sessRes.data && sessRes.data.session && sessRes.data.session.user ? sessRes.data.session.user.id : "";
   const lsState = lsUid ? stateLSget(lsUid) : {};
-  const [daysRes, tasksRes, ansRes, notesRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
+  const [daysRes, tasksRes, ansRes, notesRes, ciRes] = await Promise.all([sb.from("days").select("*").order("day_number", {
     ascending: true
   }), sb.from("tasks").select("*").order("day_number", {
     ascending: true
   }).order("position", {
     ascending: true
-  }), sb.from("task_answers").select("*"), sb.from("notes").select("*")]);
+  }), sb.from("task_answers").select("*"), sb.from("notes").select("*"), sb.from("checkins").select("day_number,value")]);
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {};
@@ -155,6 +155,13 @@ async function loadDaysFromDb() {
   (notesRes.data || []).forEach(n => {
     noteMap[n.day_number] = n.text;
   });
+  const ciMap = ciRes && !ciRes.error && Array.isArray(ciRes.data) ? (() => {
+    const m = {};
+    ciRes.data.forEach(c => {
+      m[c.day_number] = c.value;
+    });
+    return m;
+  })() : null;
   return (daysRes.data || []).map(d => ({
     id: d.day_number,
     title: d.title,
