@@ -96,7 +96,8 @@ const taskWord = (n) => {
 };
 
 // собрать контент дней из базы вместе с личными ответами и заметками пользователя
-// отметки состояния храним на устройстве (надёжно, без таблицы), плюс по-тихому в базу
+// ЖЕЛЕЗНОЕ ПРАВИЛО: прогресс, график и статистика хранятся в БАЗЕ (мультидевайс: телефон, ноутбук видят одно).
+// localStorage только как офлайн-кеш отметок состояния, источник правды — таблица checkins.
 const STATE_LS = "mp_state";
 function stateLSget(uid) { try { return JSON.parse(localStorage.getItem(STATE_LS + ":" + uid)) || {}; } catch (e) { return {}; } }
 function stateLSset(uid, dn, val) { try { const m = stateLSget(uid); m[dn] = val; localStorage.setItem(STATE_LS + ":" + uid, JSON.stringify(m)); } catch (e) {} }

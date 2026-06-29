@@ -57,5 +57,13 @@
   <script src="supabaseClient.js"></script>
   <!-- app.js собирается из app.jsx скриптом build.py (Babel больше не грузится в браузере) -->
   <script src="app.js?v=2bb6afbf"></script>
+  <!-- сервис-воркер: сеть в приоритете, чтобы обновления приходили сразу и работал офлайн -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
