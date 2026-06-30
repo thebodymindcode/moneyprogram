@@ -326,6 +326,9 @@ button { font-family: inherit; }
 .auth-switch b { color: var(--steel); cursor: pointer; font-weight: 700; }
 .auth-forgot { text-align: right; margin-top: 8px; font-size: 13px; }
 .auth-forgot b { color: var(--steel); cursor: pointer; font-weight: 700; }
+.recover-head { margin-bottom: 16px; }
+.recover-title { font-size: 18px; font-weight: 800; letter-spacing: -.01em; }
+.recover-sub { margin-top: 6px; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); }
 .divider { display: flex; align-items: center; gap: 12px; color: var(--ink-faint); font-size: 12px; margin: 18px 0; }
 .divider::before, .divider::after { content: ""; height: 1px; background: var(--line); flex: 1; }
 .field-anim { animation: fade .3s ease; }

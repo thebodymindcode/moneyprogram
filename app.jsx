@@ -341,6 +341,7 @@ function Auth() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const reg = mode === "register";
+  const recover = mode === "recover";
 
   const switchMode = (m) => { setMode(m); setErr(""); setInfo(""); };
 
@@ -389,12 +390,16 @@ function Auth() {
       const redirectTo = window.location.origin + window.location.pathname;
       const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo });
       if (error) throw error;
-      setInfo("Письмо для смены пароля отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
-    } catch (ex) { setErr(authErrorText(ex)); }
-    finally { setBusy(false); }
+      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+    } catch (ex) {
+      const m = ((ex && ex.message) || "").toLowerCase();
+      if (m.includes("rate") || m.includes("too many") || (ex && ex.status === 429))
+        setErr("Слишком часто. Подождите минуту и попробуйте снова.");
+      else setErr("Не удалось отправить письмо. Проверьте почту и попробуйте ещё раз.");
+    } finally { setBusy(false); }
   };
 
-  const onKey = (e) => { if (e.key === "Enter") submit(); };
+  const onKey = (e) => { if (e.key === "Enter") (recover ? forgot : submit)(); };
 
   return (
     <div className="auth-wrap">
@@ -405,6 +410,7 @@ function Auth() {
           <p>17 дней, чтобы поменять отношения с деньгами</p>
         </div>
         <div className="card">
+          {recover && <div className="recover-head"><div className="recover-title">Восстановление пароля</div><div className="recover-sub">Впишите почту, на которую регистрировались. Пришлём письмо со ссылкой, чтобы задать новый пароль.</div></div>}
           {reg && (
             <div className="field field-anim">
               <label>Имя</label>
@@ -417,24 +423,28 @@ function Auth() {
             <input className="input" type="email" placeholder="you@mail.com" value={email}
               onChange={(e) => setEmail(e.target.value)} onKeyDown={onKey} />
           </div>
-          <div className="field">
-            <label>Пароль</label>
-            <input className="input" type="password" placeholder="••••••••" value={pass}
-              onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} />
-          </div>
-          {!reg && <div className="auth-forgot"><b onClick={() => !busy && forgot()}>Забыли пароль?</b></div>}
+          {!recover && (
+            <div className="field">
+              <label>Пароль</label>
+              <input className="input" type="password" placeholder="••••••••" value={pass}
+                onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} />
+            </div>
+          )}
+          {mode === "login" && <div className="auth-forgot"><b onClick={() => switchMode("recover")}>Забыли пароль?</b></div>}
 
           {err && <div className="auth-msg err">{err}</div>}
           {info && <div className="auth-msg info">{info}</div>}
 
           <div className="spacer" />
-          <button className="btn btn-primary" onClick={submit} disabled={busy}>
-            {busy ? "Минуту…" : reg ? "Создать аккаунт" : "Войти"}
+          <button className="btn btn-primary" onClick={recover ? forgot : submit} disabled={busy}>
+            {busy ? "Минуту…" : recover ? "Прислать ссылку" : reg ? "Создать аккаунт" : "Войти"}
           </button>
           <div className="auth-switch">
             {reg
               ? <>Уже с нами? <b onClick={() => switchMode("login")}>Войти</b></>
-              : <>Нет аккаунта? <b onClick={() => switchMode("register")}>Регистрация</b></>}
+              : recover
+                ? <b onClick={() => switchMode("login")}>← Вернуться ко входу</b>
+                : <>Нет аккаунта? <b onClick={() => switchMode("register")}>Регистрация</b></>}
           </div>
         </div>
         <p className="center faint" style={{ fontSize: 11.5, marginTop: 18 }}>Вход только для участников программы</p>

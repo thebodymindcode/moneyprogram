@@ -892,6 +892,7 @@ function Auth() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const reg = mode === "register";
+  const recover = mode === "recover";
   const switchMode = m => {
     setMode(m);
     setErr("");
@@ -979,15 +980,16 @@ function Auth() {
         redirectTo
       });
       if (error) throw error;
-      setInfo("Письмо для смены пароля отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
     } catch (ex) {
-      setErr(authErrorText(ex));
+      const m = (ex && ex.message || "").toLowerCase();
+      if (m.includes("rate") || m.includes("too many") || ex && ex.status === 429) setErr("Слишком часто. Подождите минуту и попробуйте снова.");else setErr("Не удалось отправить письмо. Проверьте почту и попробуйте ещё раз.");
     } finally {
       setBusy(false);
     }
   };
   const onKey = e => {
-    if (e.key === "Enter") submit();
+    if (e.key === "Enter") (recover ? forgot : submit)();
   };
   return React.createElement("div", {
     className: "auth-wrap"
@@ -999,7 +1001,13 @@ function Auth() {
     className: "mark"
   }, "\u20BD"), React.createElement("h1", null, "\u041F\u0440\u043E\u0442\u043E\u043A\u043E\u043B \u0434\u0435\u043D\u0435\u0433"), React.createElement("p", null, "17 \u0434\u043D\u0435\u0439, \u0447\u0442\u043E\u0431\u044B \u043F\u043E\u043C\u0435\u043D\u044F\u0442\u044C \u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u044F \u0441 \u0434\u0435\u043D\u044C\u0433\u0430\u043C\u0438")), React.createElement("div", {
     className: "card"
-  }, reg && React.createElement("div", {
+  }, recover && React.createElement("div", {
+    className: "recover-head"
+  }, React.createElement("div", {
+    className: "recover-title"
+  }, "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043F\u0430\u0440\u043E\u043B\u044F"), React.createElement("div", {
+    className: "recover-sub"
+  }, "\u0412\u043F\u0438\u0448\u0438\u0442\u0435 \u043F\u043E\u0447\u0442\u0443, \u043D\u0430 \u043A\u043E\u0442\u043E\u0440\u0443\u044E \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043B\u0438\u0441\u044C. \u041F\u0440\u0438\u0448\u043B\u0451\u043C \u043F\u0438\u0441\u044C\u043C\u043E \u0441\u043E \u0441\u0441\u044B\u043B\u043A\u043E\u0439, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u0434\u0430\u0442\u044C \u043D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C.")), reg && React.createElement("div", {
     className: "field field-anim"
   }, React.createElement("label", null, "\u0418\u043C\u044F"), React.createElement("input", {
     className: "input",
@@ -1016,7 +1024,7 @@ function Auth() {
     value: email,
     onChange: e => setEmail(e.target.value),
     onKeyDown: onKey
-  })), React.createElement("div", {
+  })), !recover && React.createElement("div", {
     className: "field"
   }, React.createElement("label", null, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
     className: "input",
@@ -1025,10 +1033,10 @@ function Auth() {
     value: pass,
     onChange: e => setPass(e.target.value),
     onKeyDown: onKey
-  })), !reg && React.createElement("div", {
+  })), mode === "login" && React.createElement("div", {
     className: "auth-forgot"
   }, React.createElement("b", {
-    onClick: () => !busy && forgot()
+    onClick: () => switchMode("recover")
   }, "\u0417\u0430\u0431\u044B\u043B\u0438 \u043F\u0430\u0440\u043E\u043B\u044C?")), err && React.createElement("div", {
     className: "auth-msg err"
   }, err), info && React.createElement("div", {
@@ -1037,13 +1045,15 @@ function Auth() {
     className: "spacer"
   }), React.createElement("button", {
     className: "btn btn-primary",
-    onClick: submit,
+    onClick: recover ? forgot : submit,
     disabled: busy
-  }, busy ? "Минуту…" : reg ? "Создать аккаунт" : "Войти"), React.createElement("div", {
+  }, busy ? "Минуту…" : recover ? "Прислать ссылку" : reg ? "Создать аккаунт" : "Войти"), React.createElement("div", {
     className: "auth-switch"
   }, reg ? React.createElement(React.Fragment, null, "\u0423\u0436\u0435 \u0441 \u043D\u0430\u043C\u0438? ", React.createElement("b", {
     onClick: () => switchMode("login")
-  }, "\u0412\u043E\u0439\u0442\u0438")) : React.createElement(React.Fragment, null, "\u041D\u0435\u0442 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430? ", React.createElement("b", {
+  }, "\u0412\u043E\u0439\u0442\u0438")) : recover ? React.createElement("b", {
+    onClick: () => switchMode("login")
+  }, "\u2190 \u0412\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F \u043A\u043E \u0432\u0445\u043E\u0434\u0443") : React.createElement(React.Fragment, null, "\u041D\u0435\u0442 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430? ", React.createElement("b", {
     onClick: () => switchMode("register")
   }, "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F")))), React.createElement("p", {
     className: "center faint",
