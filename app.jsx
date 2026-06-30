@@ -379,6 +379,21 @@ function Auth() {
     }
   };
 
+  // забыли пароль: шлём письмо со ссылкой на смену пароля (через наш Gmail SMTP)
+  const forgot = async () => {
+    setErr(""); setInfo("");
+    const e = email.trim();
+    if (!e) { setErr("Впишите почту, на которую регистрировались, и нажмите «Забыли пароль?»."); return; }
+    setBusy(true);
+    try {
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo });
+      if (error) throw error;
+      setInfo("Письмо для смены пароля отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+    } catch (ex) { setErr(authErrorText(ex)); }
+    finally { setBusy(false); }
+  };
+
   const onKey = (e) => { if (e.key === "Enter") submit(); };
 
   return (
@@ -407,6 +422,7 @@ function Auth() {
             <input className="input" type="password" placeholder="••••••••" value={pass}
               onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} />
           </div>
+          {!reg && <div className="auth-forgot"><b onClick={() => !busy && forgot()}>Забыли пароль?</b></div>}
 
           {err && <div className="auth-msg err">{err}</div>}
           {info && <div className="auth-msg info">{info}</div>}
@@ -422,6 +438,49 @@ function Auth() {
           </div>
         </div>
         <p className="center faint" style={{ fontSize: 11.5, marginTop: 18 }}>Вход только для участников программы</p>
+      </div>
+    </div>
+  );
+}
+
+/* экран «задайте новый пароль» после перехода по ссылке восстановления из письма */
+function NewPassword({ onDone }) {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState(false);
+  const save = async () => {
+    setErr("");
+    if (p1.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
+    if (p1 !== p2) { setErr("Пароли не совпадают, впишите одинаковые."); return; }
+    setBusy(true);
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    setBusy(false);
+    if (error) { setErr(error.message || "Не получилось сменить пароль. Попробуйте ещё раз."); return; }
+    setOk(true);
+    setTimeout(() => onDone(), 1300);
+  };
+  const onKey = (e) => { if (e.key === "Enter") save(); };
+  return (
+    <div className="auth-wrap">
+      <div className="auth-box">
+        <div className="brand"><div className="mark">₽</div><h1>Новый пароль</h1><p>Придумайте новый пароль для входа</p></div>
+        <div className="card">
+          {ok ? (
+            <div className="auth-msg info">Пароль изменён. Входим…</div>
+          ) : (
+            <>
+              <div className="field"><label>Новый пароль</label>
+                <input className="input" type="password" placeholder="••••••••" value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} /></div>
+              <div className="field"><label>Повторите пароль</label>
+                <input className="input" type="password" placeholder="••••••••" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} /></div>
+              {err && <div className="auth-msg err">{err}</div>}
+              <div className="spacer" />
+              <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? "Минуту…" : "Сохранить пароль"}</button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2066,6 +2125,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState("dashboard");
   const [openDay, setOpenDay] = useState(null);
+  const [recovery, setRecovery] = useState(false);   // пришли по ссылке смены пароля
   const loadedUid = useRef(null);                    // для какого пользователя данные уже загружены
 
   // сессия: восстановление при загрузке и слежение за входом/выходом
@@ -2081,7 +2141,7 @@ function App() {
       return next;
     });
     sb.auth.getSession().then(({ data }) => applySession(data.session));
-    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => applySession(s));
+    const { data: sub } = sb.auth.onAuthStateChange((e, s) => { if (e === "PASSWORD_RECOVERY") setRecovery(true); applySession(s); });
     return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
   }, []);
 
@@ -2137,6 +2197,7 @@ function App() {
   // экраны-заглушки до готовности приложения
   if (!sb) return <Splash text="Нет ключей Supabase" sub="Создай config.js из config.example.js и обнови страницу." />;
   if (session === undefined) return <Splash text="Загрузка…" />;
+  if (recovery) return <NewPassword onDone={() => setRecovery(false)} />;
   if (!session) return <Auth />;
   if (days === null) return <Splash text="Загружаю курс…" />;
   if (loadErr && (!days || !days.length)) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;

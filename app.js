@@ -962,6 +962,30 @@ function Auth() {
       setBusy(false);
     }
   };
+  const forgot = async () => {
+    setErr("");
+    setInfo("");
+    const e = email.trim();
+    if (!e) {
+      setErr("Впишите почту, на которую регистрировались, и нажмите «Забыли пароль?».");
+      return;
+    }
+    setBusy(true);
+    try {
+      const redirectTo = window.location.origin + window.location.pathname;
+      const {
+        error
+      } = await sb.auth.resetPasswordForEmail(e, {
+        redirectTo
+      });
+      if (error) throw error;
+      setInfo("Письмо для смены пароля отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+    } catch (ex) {
+      setErr(authErrorText(ex));
+    } finally {
+      setBusy(false);
+    }
+  };
   const onKey = e => {
     if (e.key === "Enter") submit();
   };
@@ -1001,7 +1025,11 @@ function Auth() {
     value: pass,
     onChange: e => setPass(e.target.value),
     onKeyDown: onKey
-  })), err && React.createElement("div", {
+  })), !reg && React.createElement("div", {
+    className: "auth-forgot"
+  }, React.createElement("b", {
+    onClick: () => !busy && forgot()
+  }, "\u0417\u0430\u0431\u044B\u043B\u0438 \u043F\u0430\u0440\u043E\u043B\u044C?")), err && React.createElement("div", {
     className: "auth-msg err"
   }, err), info && React.createElement("div", {
     className: "auth-msg info"
@@ -1024,6 +1052,81 @@ function Auth() {
       marginTop: 18
     }
   }, "\u0412\u0445\u043E\u0434 \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u043E\u0432 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u044B")));
+}
+function NewPassword({
+  onDone
+}) {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState(false);
+  const save = async () => {
+    setErr("");
+    if (p1.length < 6) {
+      setErr("Пароль должен быть не короче 6 символов.");
+      return;
+    }
+    if (p1 !== p2) {
+      setErr("Пароли не совпадают, впишите одинаковые.");
+      return;
+    }
+    setBusy(true);
+    const {
+      error
+    } = await sb.auth.updateUser({
+      password: p1
+    });
+    setBusy(false);
+    if (error) {
+      setErr(error.message || "Не получилось сменить пароль. Попробуйте ещё раз.");
+      return;
+    }
+    setOk(true);
+    setTimeout(() => onDone(), 1300);
+  };
+  const onKey = e => {
+    if (e.key === "Enter") save();
+  };
+  return React.createElement("div", {
+    className: "auth-wrap"
+  }, React.createElement("div", {
+    className: "auth-box"
+  }, React.createElement("div", {
+    className: "brand"
+  }, React.createElement("div", {
+    className: "mark"
+  }, "\u20BD"), React.createElement("h1", null, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("p", null, "\u041F\u0440\u0438\u0434\u0443\u043C\u0430\u0439\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C \u0434\u043B\u044F \u0432\u0445\u043E\u0434\u0430")), React.createElement("div", {
+    className: "card"
+  }, ok ? React.createElement("div", {
+    className: "auth-msg info"
+  }, "\u041F\u0430\u0440\u043E\u043B\u044C \u0438\u0437\u043C\u0435\u043D\u0451\u043D. \u0412\u0445\u043E\u0434\u0438\u043C\u2026") : React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", null, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
+    className: "input",
+    type: "password",
+    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    value: p1,
+    onChange: e => setP1(e.target.value),
+    onKeyDown: onKey
+  })), React.createElement("div", {
+    className: "field"
+  }, React.createElement("label", null, "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
+    className: "input",
+    type: "password",
+    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    value: p2,
+    onChange: e => setP2(e.target.value),
+    onKeyDown: onKey
+  })), err && React.createElement("div", {
+    className: "auth-msg err"
+  }, err), React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: save,
+    disabled: busy
+  }, busy ? "Минуту…" : "Сохранить пароль")))));
 }
 function StateChart({
   days
@@ -3569,6 +3672,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [tab, setTab] = useState("dashboard");
   const [openDay, setOpenDay] = useState(null);
+  const [recovery, setRecovery] = useState(false);
   const loadedUid = useRef(null);
   useEffect(() => {
     if (!sb) {
@@ -3586,7 +3690,10 @@ function App() {
     }) => applySession(data.session));
     const {
       data: sub
-    } = sb.auth.onAuthStateChange((_e, s) => applySession(s));
+    } = sb.auth.onAuthStateChange((e, s) => {
+      if (e === "PASSWORD_RECOVERY") setRecovery(true);
+      applySession(s);
+    });
     return () => {
       if (sub && sub.subscription) sub.subscription.unsubscribe();
     };
@@ -3646,6 +3753,9 @@ function App() {
   });
   if (session === undefined) return React.createElement(Splash, {
     text: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026"
+  });
+  if (recovery) return React.createElement(NewPassword, {
+    onDone: () => setRecovery(false)
   });
   if (!session) return React.createElement(Auth, null);
   if (days === null) return React.createElement(Splash, {
