@@ -51,12 +51,33 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <script>
+    // подсказка открыть в Safari, если зашли через встроенный браузер Telegram (он подвешивает веб-приложения)
+    (function () {
+      try {
+        var tg = !!(window.TelegramWebviewProxy || window.TelegramWebview || (window.external && window.external.notify) || /Telegram/i.test(navigator.userAgent || ""));
+        if (!tg) return;
+        if (sessionStorage.getItem("tg-hint-closed")) return;
+        var bar = document.createElement("div");
+        bar.style.cssText = "background:#1d2733;color:#fff;font:600 13px/1.45 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;padding:12px 14px;display:flex;align-items:flex-start;gap:10px";
+        var t = document.createElement("span");
+        t.style.cssText = "flex:1";
+        t.innerHTML = "Лучше открыть в Safari, тут страница может зависать. Нажмите &laquo;&bull;&bull;&bull;&raquo; вверху справа и &laquo;Открыть в Safari&raquo;.";
+        var x = document.createElement("span");
+        x.textContent = "✕";
+        x.style.cssText = "cursor:pointer;font-weight:800;padding:0 4px;opacity:.8";
+        x.onclick = function () { bar.remove(); try { sessionStorage.setItem("tg-hint-closed", "1"); } catch (e) {} };
+        bar.appendChild(t); bar.appendChild(x);
+        document.body.insertBefore(bar, document.body.firstChild);
+      } catch (e) {}
+    })();
+  </script>
   <div id="root"></div>
   <script src="config.js"></script>
   <script src="appConfig.js?v=98d5eee9"></script>
   <script src="supabaseClient.js"></script>
   <!-- app.js собирается из app.jsx скриптом build.py (Babel больше не грузится в браузере) -->
-  <script src="app.js?v=edeb4fda"></script>
+  <script src="app.js?v=b86fe1e2"></script>
   <!-- сервис-воркер: сеть в приоритете, чтобы обновления приходили сразу и работал офлайн -->
   <script>
     if ("serviceWorker" in navigator) {

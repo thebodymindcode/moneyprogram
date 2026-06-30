@@ -3743,6 +3743,7 @@ function App() {
   const [tab, setTab] = useState("dashboard");
   const [openDay, setOpenDay] = useState(null);
   const [recovery, setRecovery] = useState(false);
+  const [loadSlow, setLoadSlow] = useState(false);
   const loadedUid = useRef(null);
   useEffect(() => {
     if (!sb) {
@@ -3804,6 +3805,14 @@ function App() {
       setIsAdmin(false);
     }
   }, [session]);
+  useEffect(() => {
+    if (days !== null || !session) {
+      setLoadSlow(false);
+      return;
+    }
+    const t = setTimeout(() => setLoadSlow(true), 12000);
+    return () => clearTimeout(t);
+  }, [days, session]);
   const unlockedCount = useMemo(() => days ? unlockedCountNow(days.length) : 0, [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
@@ -3829,7 +3838,8 @@ function App() {
   });
   if (!session) return React.createElement(Auth, null);
   if (days === null) return React.createElement(Splash, {
-    text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u043A\u0443\u0440\u0441\u2026"
+    text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u043A\u0443\u0440\u0441\u2026",
+    sub: loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""
   });
   if (loadErr && (!days || !days.length)) return React.createElement(Splash, {
     text: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0434\u043D\u0438",

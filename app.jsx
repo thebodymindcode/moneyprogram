@@ -2173,6 +2173,7 @@ function App() {
   const [tab, setTab] = useState("dashboard");
   const [openDay, setOpenDay] = useState(null);
   const [recovery, setRecovery] = useState(false);   // пришли по ссылке смены пароля
+  const [loadSlow, setLoadSlow] = useState(false);   // курс грузится подозрительно долго (часто встроенный браузер Telegram)
   const loadedUid = useRef(null);                    // для какого пользователя данные уже загружены
 
   // сессия: восстановление при загрузке и слежение за входом/выходом
@@ -2222,6 +2223,13 @@ function App() {
     }
   }, [session]);
 
+  // если курс грузится слишком долго (часто встроенный браузер Telegram душит запросы), показываем подсказку
+  useEffect(() => {
+    if (days !== null || !session) { setLoadSlow(false); return; }
+    const t = setTimeout(() => setLoadSlow(true), 12000);
+    return () => clearTimeout(t);
+  }, [days, session]);
+
   const unlockedCount = useMemo(() => (days ? unlockedCountNow(days.length) : 0), [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
@@ -2246,7 +2254,7 @@ function App() {
   if (session === undefined) return <Splash text="Загрузка…" />;
   if (recovery) return <NewPassword onDone={() => setRecovery(false)} />;
   if (!session) return <Auth />;
-  if (days === null) return <Splash text="Загружаю курс…" />;
+  if (days === null) return <Splash text="Загружаю курс…" sub={loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""} />;
   if (loadErr && (!days || !days.length)) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;
   if (!days.length) return <Splash text="В базе пока нет дней" sub="Запусти раздел наполнения в supabase/schema.sql, затем обнови страницу." onLogout={() => sb.auth.signOut()} />;
 
