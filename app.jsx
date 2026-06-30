@@ -54,6 +54,20 @@ async function signedAudioUrlCached(path, force) {
   return url;
 }
 
+// кеш ПОЛНОСТЬЮ скачанных дорожек (blob): чтобы не качать повторно при переключении/возврате.
+// Держим немного, старое выгружаем, чтобы не копить память на 17 уроков.
+const _audioBlobCache = new Map();   // path -> objectURL
+const AUDIO_BLOB_MAX = 4;
+function putAudioBlob(path, objectUrl) {
+  _audioBlobCache.set(path, objectUrl);
+  while (_audioBlobCache.size > AUDIO_BLOB_MAX) {
+    const oldest = _audioBlobCache.keys().next().value;
+    const u = _audioBlobCache.get(oldest);
+    _audioBlobCache.delete(oldest);
+    try { URL.revokeObjectURL(u); } catch (e) {}
+  }
+}
+
 // прочитать длительность аудио из локального файла (до загрузки), в секундах
 function readAudioDuration(file) {
   return new Promise((resolve) => {
@@ -655,8 +669,10 @@ function Player({ day }) {
   const [track, setTrack] = useState("voice");     // какая дорожка играет: "voice" без музыки (по умолчанию) или "music"
   const trackRef = useRef("voice");
   const [buffering, setBuffering] = useState(false); // ждём данные аудио (показываем индикатор загрузки)
-  const [buf, setBuf] = useState(0);               // сколько урока уже подгружено вперёд (0..1), для полоски буфера
+  const [buf, setBuf] = useState(0);               // сколько урока уже загружено (0..1), для полоски буфера
   const wantPlay = useRef(false);                  // пользователь хочет играть: запустим, как только хватит данных
+  const dlAbort = useRef(null);                    // отмена фоновой докачки при смене дня/дорожки
+  const dlFor = useRef(null);                      // путь, который сейчас докачиваем (чтобы не дублировать)
   const hasMusic = !!(day.audioPath && day.audioMusicPath);   // переключатель показываем, только когда есть обе версии
   // путь активной дорожки. Если музыки нет, всегда основная (без музыки)
   const pathNow = () => (trackRef.current === "music" && day.audioMusicPath) ? day.audioMusicPath : day.audioPath;
@@ -675,14 +691,57 @@ function Player({ day }) {
   }, [speed, src]);
 
   // взять ссылку (из кеша, мгновенно; force=свежая при сбое). resume = позиция для продолжения
+  // отменить текущую фоновую докачку (при смене дня/дорожки)
+  const stopDownload = () => {
+    if (dlAbort.current) { try { dlAbort.current.abort(); } catch (e) {} dlAbort.current = null; }
+    dlFor.current = null;
+  };
+
   const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
+    stopDownload();
     setBuf(0);
+    // если дорожка уже скачана целиком, играем сразу из памяти (мгновенно, без сети и затыков)
+    const p = pathNow();
+    const cachedBlob = _audioBlobCache.get(p);
+    if (cachedBlob && !force) { dlFor.current = p; setBuf(1); setSrc(cachedBlob); return; }
     setSrc(undefined);
-    signedAudioUrlCached(pathNow(), force)
+    signedAudioUrlCached(p, force)
       .then((u) => { if (my === reqId.current) setSrc(u); })
       .catch(() => { if (my === reqId.current) setSrc(""); });
+  };
+
+  // фоновая ПОЛНАЯ докачка дорожки: тянем весь файл с реальным прогрессом, потом играем из памяти.
+  // Стрим уже играет, поэтому старт мгновенный, а к концу урок загружен целиком и не затыкается.
+  const prefetchFull = async (path, url) => {
+    if (!path || !url || dlFor.current === path || _audioBlobCache.get(path)) return;
+    dlFor.current = path;
+    try {
+      const ctrl = new AbortController(); dlAbort.current = ctrl;
+      const resp = await fetch(url, { signal: ctrl.signal });
+      if (!resp.ok || !resp.body) return;
+      const total = +(resp.headers.get("content-length") || 0);
+      const reader = resp.body.getReader();
+      const chunks = []; let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value); got += value.length;
+        if (total && pathNow() === path) setBuf(Math.min(0.995, got / total));
+      }
+      if (pathNow() !== path) return;   // дорожка сменилась, скачанное не нужно
+      const blob = new Blob(chunks, { type: resp.headers.get("content-type") || "audio/mpeg" });
+      const burl = URL.createObjectURL(blob);
+      putAudioBlob(path, burl);
+      // бесшовно переходим на полный файл из памяти, с той же секунды
+      const a = audioRef.current;
+      resumeAt.current = a ? a.currentTime : (resumeAt.current || 0);
+      wantPlay.current = a ? !a.paused : wantPlay.current;
+      reqId.current++;
+      setBuf(1);
+      setSrc(burl);
+    } catch (e) { /* отмена или сбой сети: спокойно остаёмся на стриме */ }
   };
 
   // переключить дорожку (без музыки / с музыкой) на том же плеере: старая останавливается,
@@ -704,6 +763,7 @@ function Player({ day }) {
   useEffect(() => {
     setPlaying(false); setT(0); setDur(day.duration || 0); setBuffering(false);
     recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false; wantPlay.current = false;
+    stopDownload();
     trackRef.current = "voice"; setTrack("voice");
     if (!day.audioPath) { reqId.current++; setSrc(null); return; }
     loadSrc(0);
@@ -753,6 +813,7 @@ function Player({ day }) {
   const onWaiting = () => { if (wantPlay.current) setBuffering(true); };   // буфер кончился по ходу
   // сколько подгружено вперёд (для светлой полоски буфера на таймлайне)
   const readBuf = () => {
+    if (dlFor.current) return;   // идёт фоновая полная докачка, прогресс полосы ведём по ней
     const a = audioRef.current; if (!a || !a.duration || !isFinite(a.duration)) return;
     try { if (a.buffered.length) setBuf(Math.min(1, a.buffered.end(a.buffered.length - 1) / a.duration)); } catch (e) {}
   };
@@ -796,7 +857,7 @@ function Player({ day }) {
         <audio ref={audioRef} src={src} preload="metadata"
           onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onError={onAudioError}
           onCanPlay={onCanPlay} onCanPlayThrough={onCanPlay} onWaiting={onWaiting} onStalled={onWaiting} onProgress={readBuf}
-          onPlaying={() => { setBuffering(false); setPlaying(true); }}
+          onPlaying={() => { setBuffering(false); setPlaying(true); if (src && src.indexOf("blob:") !== 0) prefetchFull(pathNow(), src); }}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
           onEnded={() => { setPlaying(false); wantPlay.current = false; }} />
       )}

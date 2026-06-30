@@ -58,6 +58,19 @@ async function signedAudioUrlCached(path, force) {
   });
   return url;
 }
+const _audioBlobCache = new Map();
+const AUDIO_BLOB_MAX = 4;
+function putAudioBlob(path, objectUrl) {
+  _audioBlobCache.set(path, objectUrl);
+  while (_audioBlobCache.size > AUDIO_BLOB_MAX) {
+    const oldest = _audioBlobCache.keys().next().value;
+    const u = _audioBlobCache.get(oldest);
+    _audioBlobCache.delete(oldest);
+    try {
+      URL.revokeObjectURL(u);
+    } catch (e) {}
+  }
+}
 function readAudioDuration(file) {
   return new Promise(resolve => {
     try {
@@ -1383,6 +1396,8 @@ function Player({
   const [buffering, setBuffering] = useState(false);
   const [buf, setBuf] = useState(0);
   const wantPlay = useRef(false);
+  const dlAbort = useRef(null);
+  const dlFor = useRef(null);
   const hasMusic = !!(day.audioPath && day.audioMusicPath);
   const pathNow = () => trackRef.current === "music" && day.audioMusicPath ? day.audioMusicPath : day.audioPath;
   const applySpeed = v => {
@@ -1401,16 +1416,72 @@ function Player({
       } catch (e) {}
     }
   }, [speed, src]);
+  const stopDownload = () => {
+    if (dlAbort.current) {
+      try {
+        dlAbort.current.abort();
+      } catch (e) {}
+      dlAbort.current = null;
+    }
+    dlFor.current = null;
+  };
   const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
+    stopDownload();
     setBuf(0);
+    const p = pathNow();
+    const cachedBlob = _audioBlobCache.get(p);
+    if (cachedBlob && !force) {
+      dlFor.current = p;
+      setBuf(1);
+      setSrc(cachedBlob);
+      return;
+    }
     setSrc(undefined);
-    signedAudioUrlCached(pathNow(), force).then(u => {
+    signedAudioUrlCached(p, force).then(u => {
       if (my === reqId.current) setSrc(u);
     }).catch(() => {
       if (my === reqId.current) setSrc("");
     });
+  };
+  const prefetchFull = async (path, url) => {
+    if (!path || !url || dlFor.current === path || _audioBlobCache.get(path)) return;
+    dlFor.current = path;
+    try {
+      const ctrl = new AbortController();
+      dlAbort.current = ctrl;
+      const resp = await fetch(url, {
+        signal: ctrl.signal
+      });
+      if (!resp.ok || !resp.body) return;
+      const total = +(resp.headers.get("content-length") || 0);
+      const reader = resp.body.getReader();
+      const chunks = [];
+      let got = 0;
+      for (;;) {
+        const {
+          done,
+          value
+        } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        got += value.length;
+        if (total && pathNow() === path) setBuf(Math.min(0.995, got / total));
+      }
+      if (pathNow() !== path) return;
+      const blob = new Blob(chunks, {
+        type: resp.headers.get("content-type") || "audio/mpeg"
+      });
+      const burl = URL.createObjectURL(blob);
+      putAudioBlob(path, burl);
+      const a = audioRef.current;
+      resumeAt.current = a ? a.currentTime : resumeAt.current || 0;
+      wantPlay.current = a ? !a.paused : wantPlay.current;
+      reqId.current++;
+      setBuf(1);
+      setSrc(burl);
+    } catch (e) {}
   };
   const switchTrack = next => {
     if (next === trackRef.current || !hasMusic) return;
@@ -1434,6 +1505,7 @@ function Player({
     resumeAt.current = 0;
     shouldResume.current = false;
     wantPlay.current = false;
+    stopDownload();
     trackRef.current = "voice";
     setTrack("voice");
     if (!day.audioPath) {
@@ -1497,6 +1569,7 @@ function Player({
     if (wantPlay.current) setBuffering(true);
   };
   const readBuf = () => {
+    if (dlFor.current) return;
     const a = audioRef.current;
     if (!a || !a.duration || !isFinite(a.duration)) return;
     try {
@@ -1561,6 +1634,7 @@ function Player({
     onPlaying: () => {
       setBuffering(false);
       setPlaying(true);
+      if (src && src.indexOf("blob:") !== 0) prefetchFull(pathNow(), src);
     },
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),
