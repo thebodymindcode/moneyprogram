@@ -162,6 +162,9 @@ function writeDaysCache(uid, days) {
     if (Array.isArray(days) && days.length) localStorage.setItem(DAYS_CACHE + ":" + uid, JSON.stringify(days));
   } catch (e) {}
 }
+function withTimeout(promise, ms, label) {
+  return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error((label || "Запрос") + ": превышено время ожидания")), ms))]);
+}
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;
   const reqs = [sb.from("days").select("*").order("day_number", {
@@ -3714,7 +3717,8 @@ function BottomNav({
 function Splash({
   text,
   sub,
-  onLogout
+  onLogout,
+  onReload
 }) {
   return React.createElement("div", {
     className: "auth-wrap"
@@ -3740,7 +3744,12 @@ function Splash({
       wordBreak: "break-word",
       lineHeight: 1.5
     }
-  }, sub), onLogout && React.createElement(React.Fragment, null, React.createElement("div", {
+  }, sub), onReload && React.createElement(React.Fragment, null, React.createElement("div", {
+    className: "spacer"
+  }), React.createElement("button", {
+    className: "btn btn-primary",
+    onClick: onReload
+  }, "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443")), onLogout && React.createElement(React.Fragment, null, React.createElement("div", {
     className: "spacer"
   }), React.createElement("div", {
     className: "spacer"
@@ -3760,6 +3769,7 @@ function App() {
   const [openDay, setOpenDay] = useState(null);
   const [recovery, setRecovery] = useState(false);
   const [loadSlow, setLoadSlow] = useState(false);
+  const [bootSlow, setBootSlow] = useState(false);
   const loadedUid = useRef(null);
   useEffect(() => {
     if (!sb) {
@@ -3772,9 +3782,9 @@ function App() {
       if (prev === null && next === null) return prev;
       return next;
     });
-    sb.auth.getSession().then(({
+    withTimeout(sb.auth.getSession(), 9000, "Проверка входа").then(({
       data
-    }) => applySession(data.session));
+    }) => applySession(data.session)).catch(() => setSession(prev => prev === undefined ? null : prev));
     const {
       data: sub
     } = sb.auth.onAuthStateChange((e, s) => {
@@ -3785,14 +3795,19 @@ function App() {
       if (sub && sub.subscription) sub.subscription.unsubscribe();
     };
   }, []);
-  const reload = async () => {
+  const reload = async (attempt = 0) => {
     try {
-      const d = await loadDaysFromDb();
+      const d = await withTimeout(loadDaysFromDb(), 10000, "Загрузка курса");
       setDays(d);
       setLoadErr("");
+      setLoadSlow(false);
     } catch (e) {
-      setDays(cur => cur && cur.length ? cur : []);
+      if (attempt < 2) {
+        return reload(attempt + 1);
+      }
+      setDays(cur => cur && cur.length ? cur : cur);
       setLoadErr(e && e.message || "Не удалось загрузить данные.");
+      setLoadSlow(true);
     }
   };
   useEffect(() => {
@@ -3829,6 +3844,14 @@ function App() {
     const t = setTimeout(() => setLoadSlow(true), 12000);
     return () => clearTimeout(t);
   }, [days, session]);
+  useEffect(() => {
+    if (session !== undefined) {
+      setBootSlow(false);
+      return;
+    }
+    const t = setTimeout(() => setBootSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, [session]);
   const unlockedCount = useMemo(() => days ? unlockedCountNow(days.length) : 0, [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
@@ -3847,7 +3870,9 @@ function App() {
     sub: "\u0421\u043E\u0437\u0434\u0430\u0439 config.js \u0438\u0437 config.example.js \u0438 \u043E\u0431\u043D\u043E\u0432\u0438 \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443."
   });
   if (session === undefined) return React.createElement(Splash, {
-    text: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026"
+    text: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
+    sub: bootSlow ? "Если открыли из Telegram и долго грузится, нажмите «•••» сверху и «Открыть в Safari»." : "",
+    onReload: bootSlow ? () => window.location.reload() : null
   });
   if (recovery) return React.createElement(NewPassword, {
     onDone: () => setRecovery(false)
@@ -3855,7 +3880,8 @@ function App() {
   if (!session) return React.createElement(Auth, null);
   if (days === null) return React.createElement(Splash, {
     text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u043A\u0443\u0440\u0441\u2026",
-    sub: loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""
+    sub: loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : "",
+    onReload: loadSlow ? () => window.location.reload() : null
   });
   if (loadErr && (!days || !days.length)) return React.createElement(Splash, {
     text: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0434\u043D\u0438",

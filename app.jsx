@@ -140,6 +140,14 @@ function writeDaysCache(uid, days) {
   try { if (Array.isArray(days) && days.length) localStorage.setItem(DAYS_CACHE + ":" + uid, JSON.stringify(days)); } catch (e) {}
 }
 
+// никакой сетевой вызов не должен висеть вечно: если за ms нет ответа, считаем ошибкой
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error((label || "Запрос") + ": превышено время ожидания")), ms)),
+  ]);
+}
+
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;   // пока таблицы checkins нет, к ней не обращаемся (ноль ошибок в консоли)
   const reqs = [
@@ -2152,7 +2160,7 @@ function BottomNav({ tab, setTab, isAdmin }) {
 }
 
 /* ========================= Splash / служебные экраны ========================= */
-function Splash({ text, sub, onLogout }) {
+function Splash({ text, sub, onLogout, onReload }) {
   return (
     <div className="auth-wrap">
       <div className="auth-box">
@@ -2160,6 +2168,7 @@ function Splash({ text, sub, onLogout }) {
         <div className="card center">
           <div style={{ fontWeight: 700, fontSize: 16, lineHeight: 1.4 }}>{text}</div>
           {sub && <div className="muted" style={{ fontSize: 12.5, marginTop: 10, wordBreak: "break-word", lineHeight: 1.5 }}>{sub}</div>}
+          {onReload && <><div className="spacer" /><button className="btn btn-primary" onClick={onReload}>Обновить страницу</button></>}
           {onLogout && <><div className="spacer" /><div className="spacer" /><button className="btn btn-ghost" onClick={onLogout}>Выйти</button></>}
         </div>
       </div>
@@ -2179,6 +2188,7 @@ function App() {
   const [openDay, setOpenDay] = useState(null);
   const [recovery, setRecovery] = useState(false);   // пришли по ссылке смены пароля
   const [loadSlow, setLoadSlow] = useState(false);   // курс грузится подозрительно долго (часто встроенный браузер Telegram)
+  const [bootSlow, setBootSlow] = useState(false);   // первый экран (проверка входа) висит слишком долго
   const loadedUid = useRef(null);                    // для какого пользователя данные уже загружены
 
   // сессия: восстановление при загрузке и слежение за входом/выходом
@@ -2193,19 +2203,26 @@ function App() {
       if (prev === null && next === null) return prev;
       return next;
     });
-    sb.auth.getSession().then(({ data }) => applySession(data.session));
+    // проверка сессии не должна висеть вечно: если за 9с нет ответа, считаем, что не вошли (покажем вход)
+    withTimeout(sb.auth.getSession(), 9000, "Проверка входа")
+      .then(({ data }) => applySession(data.session))
+      .catch(() => setSession((prev) => (prev === undefined ? null : prev)));
     const { data: sub } = sb.auth.onAuthStateChange((e, s) => { if (e === "PASSWORD_RECOVERY") setRecovery(true); applySession(s); });
     return () => { if (sub && sub.subscription) sub.subscription.unsubscribe(); };
   }, []);
 
-  const reload = async () => {
+  // грузим дни с таймаутом и парой авто-повторов, чтобы экран «Загружаю курс…» не висел вечно
+  const reload = async (attempt = 0) => {
     try {
-      const d = await loadDaysFromDb();
+      const d = await withTimeout(loadDaysFromDb(), 10000, "Загрузка курса");
       setDays(d);
       setLoadErr("");
+      setLoadSlow(false);
     } catch (e) {
-      setDays((cur) => (cur && cur.length ? cur : []));   // есть кеш, оставляем рабочий UI
+      if (attempt < 2) { return reload(attempt + 1); }     // ещё две попытки, вдруг сеть моргнула
+      setDays((cur) => (cur && cur.length ? cur : cur));    // если был кеш, оставляем рабочий UI как есть
       setLoadErr((e && e.message) || "Не удалось загрузить данные.");
+      setLoadSlow(true);                                    // показать подсказку и кнопку «Обновить» сразу
     }
   };
 
@@ -2235,6 +2252,13 @@ function App() {
     return () => clearTimeout(t);
   }, [days, session]);
 
+  // тот же сторож для самого первого экрана (проверка входа)
+  useEffect(() => {
+    if (session !== undefined) { setBootSlow(false); return; }
+    const t = setTimeout(() => setBootSlow(true), 8000);
+    return () => clearTimeout(t);
+  }, [session]);
+
   const unlockedCount = useMemo(() => (days ? unlockedCountNow(days.length) : 0), [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
@@ -2256,10 +2280,10 @@ function App() {
 
   // экраны-заглушки до готовности приложения
   if (!sb) return <Splash text="Нет ключей Supabase" sub="Создай config.js из config.example.js и обнови страницу." />;
-  if (session === undefined) return <Splash text="Загрузка…" />;
+  if (session === undefined) return <Splash text="Загрузка…" sub={bootSlow ? "Если открыли из Telegram и долго грузится, нажмите «•••» сверху и «Открыть в Safari»." : ""} onReload={bootSlow ? (() => window.location.reload()) : null} />;
   if (recovery) return <NewPassword onDone={() => setRecovery(false)} />;
   if (!session) return <Auth />;
-  if (days === null) return <Splash text="Загружаю курс…" sub={loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""} />;
+  if (days === null) return <Splash text="Загружаю курс…" sub={loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""} onReload={loadSlow ? (() => window.location.reload()) : null} />;
   if (loadErr && (!days || !days.length)) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;
   if (!days.length) return <Splash text="В базе пока нет дней" sub="Запусти раздел наполнения в supabase/schema.sql, затем обнови страницу." onLogout={() => sb.auth.signOut()} />;
 
