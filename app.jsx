@@ -2280,10 +2280,10 @@ function App() {
 
   // экраны-заглушки до готовности приложения
   if (!sb) return <Splash text="Нет ключей Supabase" sub="Создай config.js из config.example.js и обнови страницу." />;
-  if (session === undefined) return <Splash text="Загрузка…" sub={bootSlow ? "Если открыли из Telegram и долго грузится, нажмите «•••» сверху и «Открыть в Safari»." : ""} onReload={bootSlow ? (() => window.location.reload()) : null} />;
+  if (session === undefined) return <Splash text="Загрузка…" sub={bootSlow ? "Долго грузится? Проверьте интернет, попробуйте мобильный интернет вместо Wi-Fi и отключите VPN. Открыли из Telegram, откройте в Safari. Или нажмите «Обновить»." : ""} onReload={bootSlow ? (() => window.location.reload()) : null} />;
   if (recovery) return <NewPassword onDone={() => setRecovery(false)} />;
   if (!session) return <Auth />;
-  if (days === null) return <Splash text="Загружаю курс…" sub={loadSlow ? "Долго грузится? Если вы открыли из Telegram, нажмите «•••» сверху и «Открыть в Safari». Или просто обновите страницу." : ""} onReload={loadSlow ? (() => window.location.reload()) : null} />;
+  if (days === null) return <Splash text="Загружаю курс…" sub={loadSlow ? "Долго грузится? Включите мобильный интернет вместо Wi-Fi (или наоборот) и отключите VPN. Открыли из Telegram, откройте в Safari. Не помогает, напишите в @TheBodyMindCode_support." : ""} onReload={loadSlow ? (() => window.location.reload()) : null} />;
   if (loadErr && (!days || !days.length)) return <Splash text="Не удалось загрузить дни" sub={"Запусти SQL-скрипт supabase/schema.sql в Supabase, затем обнови страницу. Подробности: " + loadErr} onLogout={() => sb.auth.signOut()} />;
   if (!days.length) return <Splash text="В базе пока нет дней" sub="Запусти раздел наполнения в supabase/schema.sql, затем обнови страницу." onLogout={() => sb.auth.signOut()} />;
 
