@@ -112,13 +112,17 @@ function writeDaysCache(uid, days) {
 }
 
 async function loadDaysFromDb() {
-  const [daysRes, tasksRes, ansRes, notesRes, ciRes] = await Promise.all([
+  const wantCheckins = !!cfg().CHECKINS_READY;   // пока таблицы checkins нет, к ней не обращаемся (ноль ошибок в консоли)
+  const reqs = [
     sb.from("days").select("*").order("day_number", { ascending: true }),
     sb.from("tasks").select("*").order("day_number", { ascending: true }).order("position", { ascending: true }),
     sb.from("task_answers").select("*"),
     sb.from("notes").select("*"),
-    sb.from("checkins").select("day_number,value"),
-  ]);
+  ];
+  if (wantCheckins) reqs.push(sb.from("checkins").select("day_number,value"));
+  const results = await Promise.all(reqs);
+  const [daysRes, tasksRes, ansRes, notesRes] = results;
+  const ciRes = wantCheckins ? results[4] : null;
   if (daysRes.error) throw daysRes.error;
   if (tasksRes.error) throw tasksRes.error;
   const ansMap = {}; (ansRes.data || []).forEach((a) => { ansMap[a.task_id] = a; });
@@ -1955,8 +1959,10 @@ function App() {
   };
   const onState = (di, value) => {
     setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));   // мгновенно в интерфейсе
-    // источник правды — база (мультидевайс). Ошибку не показываем баннером.
-    try { sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }).then(() => {}, () => {}); } catch (e) {}
+    // источник правды — база (мультидевайс). Пишем, только если таблица checkins готова. Ошибку не показываем баннером.
+    if (cfg().CHECKINS_READY) {
+      try { sb.from("checkins").upsert({ user_id: uid, day_number: days[di].id, value: value, updated_at: nowISO() }, { onConflict: "user_id,day_number" }).then(() => {}, () => {}); } catch (e) {}
+    }
   };
 
   const goTab = (t) => { setOpenDay(null); setTab(t); };
