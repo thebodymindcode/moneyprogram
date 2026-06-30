@@ -1328,6 +1328,7 @@ function AccessSection() {
   const [msg, setMsg] = useState(null);       // {type:"ok"|"err", text}
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [search, setSearch] = useState("");
 
   const load = async () => {
     // оба запроса разом, так быстрее, чем один за другим
@@ -1351,20 +1352,30 @@ function AccessSection() {
   };
   useEffect(() => { load(); }, []);
 
+  // массовое добавление: можно вставить сразу пачку почт через запятую, пробел или с новой строки
   const add = async () => {
     setMsg(null);
-    const e = email.trim().toLowerCase();
-    if (!emailValid(e)) { setMsg({ type: "err", text: "Впиши корректный e-mail." }); return; }
-    if ((list || []).some((r) => (r.email || "").toLowerCase() === e)) { setMsg({ type: "err", text: "Уже в списке." }); return; }
-    setBusy(true);
-    const { error } = await sb.from("allowed_emails").insert({ email: e });
-    setBusy(false);
-    if (error) {
-      if (error.code === "23505" || /duplicate|unique/i.test(error.message || "")) setMsg({ type: "err", text: "Уже в списке." });
-      else setMsg({ type: "err", text: "Не получилось добавить: " + (error.message || "") });
+    const parts = (email || "").split(/[\s,;]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const uniq = Array.from(new Set(parts));
+    if (!uniq.length) { setMsg({ type: "err", text: "Впиши хотя бы одну почту." }); return; }
+    const valid = uniq.filter(emailValid);
+    const invalid = uniq.filter((e) => !emailValid(e));
+    const existing = new Set((list || []).map((r) => (r.email || "").toLowerCase()));
+    const toAdd = valid.filter((e) => !existing.has(e));
+    if (!toAdd.length) {
+      setMsg({ type: "err", text: invalid.length ? ("Не похоже на почту: " + invalid.slice(0, 3).join(", ")) : "Эти почты уже в списке." });
       return;
     }
-    setEmail(""); setMsg({ type: "ok", text: "Добавлен: " + e }); load();
+    setBusy(true);
+    const { error } = await sb.from("allowed_emails").upsert(toAdd.map((e) => ({ email: e })), { onConflict: "email", ignoreDuplicates: true });
+    setBusy(false);
+    if (error) { setMsg({ type: "err", text: "Не получилось добавить: " + (error.message || "") }); return; }
+    setEmail("");
+    const r = ["Добавлено: " + toAdd.length];
+    const dup = valid.length - toAdd.length;
+    if (dup) r.push("уже было: " + dup);
+    if (invalid.length) r.push("пропущено (не почта): " + invalid.length);
+    setMsg({ type: "ok", text: r.join(", ") }); load();
   };
 
   const remove = async (e) => {
@@ -1379,41 +1390,55 @@ function AccessSection() {
     <div className="card access-card">
       <div className="eyebrow">Доступы</div>
       <div className="block-title">Кто допущен в программу</div>
-      <div className="block-sub muted">Добавляй e-mail оплативших. Регистр не важен, адрес приводится к нижнему регистру.</div>
+      <div className="block-sub muted">Можно вставить сразу пачку почт, через запятую, пробел или с новой строки. Регистр не важен.</div>
 
       <div className="access-add">
-        <input className="adm-input" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off"
-          placeholder="email@example.com" value={email}
-          onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+        <textarea className="adm-input access-ta" rows={2} autoCapitalize="none" autoCorrect="off" spellCheck={false}
+          placeholder="email@example.com, можно сразу несколько" value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); add(); } }} />
         <button className="btn btn-primary btn-sm" onClick={add} disabled={busy}>Добавить</button>
       </div>
 
       {msg && <div className={"access-msg " + msg.type}>{msg.text}</div>}
+
+      {list && list.length > 0 && (
+        <div className="access-toolbar">
+          <span className="access-count">Всего: {list.length}{admins.length ? " · админов: " + admins.length : ""}</span>
+          <input className="access-search" placeholder="Поиск по списку" value={search}
+            onChange={(e) => setSearch(e.target.value)} autoCapitalize="none" autoCorrect="off" />
+        </div>
+      )}
 
       <div className="access-list">
         {list === null ? (
           <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>Загрузка...</div>
         ) : list.length === 0 ? (
           <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>Пока никого нет.</div>
-        ) : list.map((r) => {
-          const e = (r.email || "").toLowerCase();
-          const isAdminEmail = admins.indexOf(e) !== -1;
-          return (
-            <div key={r.email} className="access-row">
-              <span className="access-email">{r.email}{isAdminEmail && <span className="access-tag">админ</span>}</span>
-              {isAdminEmail ? (
-                <span className="faint" style={{ fontSize: 11.5, flex: "none" }}>защищён</span>
-              ) : confirm === r.email ? (
-                <span className="access-confirm">
-                  <button className="btn btn-sm access-del" onClick={() => remove(r.email)} disabled={busy}>Удалить</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Отмена</button>
-                </span>
-              ) : (
-                <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
-              )}
-            </div>
-          );
-        })}
+        ) : (() => {
+          const q = search.trim().toLowerCase();
+          const shown = q ? list.filter((r) => (r.email || "").toLowerCase().includes(q)) : list;
+          if (!shown.length) return <div className="muted" style={{ fontSize: 13, padding: "10px 0" }}>Ничего не найдено.</div>;
+          return shown.map((r) => {
+            const e = (r.email || "").toLowerCase();
+            const isAdminEmail = admins.indexOf(e) !== -1;
+            return (
+              <div key={r.email} className="access-row">
+                <span className="access-email">{r.email}{isAdminEmail && <span className="access-tag">админ</span>}</span>
+                {isAdminEmail ? (
+                  <span className="faint" style={{ fontSize: 11, flex: "none" }}>защищён</span>
+                ) : confirm === r.email ? (
+                  <span className="access-confirm">
+                    <button className="btn btn-sm access-del" onClick={() => remove(r.email)} disabled={busy}>Удалить</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Отмена</button>
+                  </span>
+                ) : (
+                  <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );

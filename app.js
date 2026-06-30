@@ -2342,6 +2342,7 @@ function AccessSection() {
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [search, setSearch] = useState("");
   const load = async () => {
     const [aRes, lRes] = await Promise.all([sb.from("admins").select("email"), sb.from("allowed_emails").select("email, note, created_at").order("created_at", {
       ascending: true
@@ -2367,42 +2368,51 @@ function AccessSection() {
   }, []);
   const add = async () => {
     setMsg(null);
-    const e = email.trim().toLowerCase();
-    if (!emailValid(e)) {
+    const parts = (email || "").split(/[\s,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+    const uniq = Array.from(new Set(parts));
+    if (!uniq.length) {
       setMsg({
         type: "err",
-        text: "Впиши корректный e-mail."
+        text: "Впиши хотя бы одну почту."
       });
       return;
     }
-    if ((list || []).some(r => (r.email || "").toLowerCase() === e)) {
+    const valid = uniq.filter(emailValid);
+    const invalid = uniq.filter(e => !emailValid(e));
+    const existing = new Set((list || []).map(r => (r.email || "").toLowerCase()));
+    const toAdd = valid.filter(e => !existing.has(e));
+    if (!toAdd.length) {
       setMsg({
         type: "err",
-        text: "Уже в списке."
+        text: invalid.length ? "Не похоже на почту: " + invalid.slice(0, 3).join(", ") : "Эти почты уже в списке."
       });
       return;
     }
     setBusy(true);
     const {
       error
-    } = await sb.from("allowed_emails").insert({
+    } = await sb.from("allowed_emails").upsert(toAdd.map(e => ({
       email: e
+    })), {
+      onConflict: "email",
+      ignoreDuplicates: true
     });
     setBusy(false);
     if (error) {
-      if (error.code === "23505" || /duplicate|unique/i.test(error.message || "")) setMsg({
-        type: "err",
-        text: "Уже в списке."
-      });else setMsg({
+      setMsg({
         type: "err",
         text: "Не получилось добавить: " + (error.message || "")
       });
       return;
     }
     setEmail("");
+    const r = ["Добавлено: " + toAdd.length];
+    const dup = valid.length - toAdd.length;
+    if (dup) r.push("уже было: " + dup);
+    if (invalid.length) r.push("пропущено (не почта): " + invalid.length);
     setMsg({
       type: "ok",
-      text: "Добавлен: " + e
+      text: r.join(", ")
     });
     load();
   };
@@ -2435,19 +2445,22 @@ function AccessSection() {
     className: "block-title"
   }, "\u041A\u0442\u043E \u0434\u043E\u043F\u0443\u0449\u0435\u043D \u0432 \u043F\u0440\u043E\u0433\u0440\u0430\u043C\u043C\u0443"), React.createElement("div", {
     className: "block-sub muted"
-  }, "\u0414\u043E\u0431\u0430\u0432\u043B\u044F\u0439 e-mail \u043E\u043F\u043B\u0430\u0442\u0438\u0432\u0448\u0438\u0445. \u0420\u0435\u0433\u0438\u0441\u0442\u0440 \u043D\u0435 \u0432\u0430\u0436\u0435\u043D, \u0430\u0434\u0440\u0435\u0441 \u043F\u0440\u0438\u0432\u043E\u0434\u0438\u0442\u0441\u044F \u043A \u043D\u0438\u0436\u043D\u0435\u043C\u0443 \u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0443."), React.createElement("div", {
+  }, "\u041C\u043E\u0436\u043D\u043E \u0432\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u0441\u0440\u0430\u0437\u0443 \u043F\u0430\u0447\u043A\u0443 \u043F\u043E\u0447\u0442, \u0447\u0435\u0440\u0435\u0437 \u0437\u0430\u043F\u044F\u0442\u0443\u044E, \u043F\u0440\u043E\u0431\u0435\u043B \u0438\u043B\u0438 \u0441 \u043D\u043E\u0432\u043E\u0439 \u0441\u0442\u0440\u043E\u043A\u0438. \u0420\u0435\u0433\u0438\u0441\u0442\u0440 \u043D\u0435 \u0432\u0430\u0436\u0435\u043D."), React.createElement("div", {
     className: "access-add"
-  }, React.createElement("input", {
-    className: "adm-input",
-    type: "email",
-    inputMode: "email",
+  }, React.createElement("textarea", {
+    className: "adm-input access-ta",
+    rows: 2,
     autoCapitalize: "none",
     autoCorrect: "off",
-    placeholder: "email@example.com",
+    spellCheck: false,
+    placeholder: "email@example.com, \u043C\u043E\u0436\u043D\u043E \u0441\u0440\u0430\u0437\u0443 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E",
     value: email,
     onChange: e => setEmail(e.target.value),
     onKeyDown: e => {
-      if (e.key === "Enter") add();
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        add();
+      }
     }
   }), React.createElement("button", {
     className: "btn btn-primary btn-sm",
@@ -2455,7 +2468,18 @@ function AccessSection() {
     disabled: busy
   }, "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C")), msg && React.createElement("div", {
     className: "access-msg " + msg.type
-  }, msg.text), React.createElement("div", {
+  }, msg.text), list && list.length > 0 && React.createElement("div", {
+    className: "access-toolbar"
+  }, React.createElement("span", {
+    className: "access-count"
+  }, "\u0412\u0441\u0435\u0433\u043E: ", list.length, admins.length ? " · админов: " + admins.length : ""), React.createElement("input", {
+    className: "access-search",
+    placeholder: "\u041F\u043E\u0438\u0441\u043A \u043F\u043E \u0441\u043F\u0438\u0441\u043A\u0443",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    autoCapitalize: "none",
+    autoCorrect: "off"
+  })), React.createElement("div", {
     className: "access-list"
   }, list === null ? React.createElement("div", {
     className: "muted",
@@ -2469,37 +2493,48 @@ function AccessSection() {
       fontSize: 13,
       padding: "10px 0"
     }
-  }, "\u041F\u043E\u043A\u0430 \u043D\u0438\u043A\u043E\u0433\u043E \u043D\u0435\u0442.") : list.map(r => {
-    const e = (r.email || "").toLowerCase();
-    const isAdminEmail = admins.indexOf(e) !== -1;
-    return React.createElement("div", {
-      key: r.email,
-      className: "access-row"
-    }, React.createElement("span", {
-      className: "access-email"
-    }, r.email, isAdminEmail && React.createElement("span", {
-      className: "access-tag"
-    }, "\u0430\u0434\u043C\u0438\u043D")), isAdminEmail ? React.createElement("span", {
-      className: "faint",
+  }, "\u041F\u043E\u043A\u0430 \u043D\u0438\u043A\u043E\u0433\u043E \u043D\u0435\u0442.") : (() => {
+    const q = search.trim().toLowerCase();
+    const shown = q ? list.filter(r => (r.email || "").toLowerCase().includes(q)) : list;
+    if (!shown.length) return React.createElement("div", {
+      className: "muted",
       style: {
-        fontSize: 11.5,
-        flex: "none"
+        fontSize: 13,
+        padding: "10px 0"
       }
-    }, "\u0437\u0430\u0449\u0438\u0449\u0451\u043D") : confirm === r.email ? React.createElement("span", {
-      className: "access-confirm"
-    }, React.createElement("button", {
-      className: "btn btn-sm access-del",
-      onClick: () => remove(r.email),
-      disabled: busy
-    }, "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"), React.createElement("button", {
-      className: "btn btn-ghost btn-sm",
-      onClick: () => setConfirm(null)
-    }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : React.createElement("button", {
-      className: "icon-btn",
-      title: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
-      onClick: () => setConfirm(r.email)
-    }, "\xD7"));
-  })));
+    }, "\u041D\u0438\u0447\u0435\u0433\u043E \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E.");
+    return shown.map(r => {
+      const e = (r.email || "").toLowerCase();
+      const isAdminEmail = admins.indexOf(e) !== -1;
+      return React.createElement("div", {
+        key: r.email,
+        className: "access-row"
+      }, React.createElement("span", {
+        className: "access-email"
+      }, r.email, isAdminEmail && React.createElement("span", {
+        className: "access-tag"
+      }, "\u0430\u0434\u043C\u0438\u043D")), isAdminEmail ? React.createElement("span", {
+        className: "faint",
+        style: {
+          fontSize: 11,
+          flex: "none"
+        }
+      }, "\u0437\u0430\u0449\u0438\u0449\u0451\u043D") : confirm === r.email ? React.createElement("span", {
+        className: "access-confirm"
+      }, React.createElement("button", {
+        className: "btn btn-sm access-del",
+        onClick: () => remove(r.email),
+        disabled: busy
+      }, "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"), React.createElement("button", {
+        className: "btn btn-ghost btn-sm",
+        onClick: () => setConfirm(null)
+      }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : React.createElement("button", {
+        className: "icon-btn",
+        title: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
+        onClick: () => setConfirm(r.email)
+      }, "\xD7"));
+    });
+  })()));
 }
 const STUCK_AFTER_DAYS = 3;
 const plural = (n, one, few, many) => {
