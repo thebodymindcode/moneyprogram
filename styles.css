@@ -649,6 +649,17 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 .access-msg.ok { background: #eaf3ee; border: 1px solid #cfe6da; color: #2f7d5b; }
 .access-msg.err { background: #fcecec; border: 1px solid #f3d2d2; color: #b23b3b; }
 .access-ta { resize: vertical; min-height: 44px; line-height: 1.4; }
+/* выдача пароля участнику */
+.access-actions { display: flex; gap: 4px; flex: none; }
+.icon-btn.key { color: var(--steel); }
+.icon-btn.key:hover { background: var(--accent-soft, #e9f1fe); }
+.access-cred { margin-top: 12px; border: 1px solid #cfe0fb; background: linear-gradient(165deg,#f2f8ff,#eaf2fe); border-radius: 14px; padding: 14px 16px; }
+.access-cred .ac-title { font-size: 13px; font-weight: 700; color: #0a59bf; margin-bottom: 8px; }
+.access-cred .ac-row { display: flex; gap: 10px; align-items: baseline; font-size: 14px; margin: 3px 0; }
+.access-cred .ac-row span { width: 56px; color: var(--ink-soft); flex: none; }
+.access-cred .ac-row b { color: var(--ink); word-break: break-all; }
+.access-cred .ac-pass { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; letter-spacing: .02em; }
+.access-cred .ac-actions { display: flex; gap: 8px; margin-top: 12px; }
 .access-toolbar { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 .access-count { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
 .access-search { flex: 1; min-width: 140px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px;

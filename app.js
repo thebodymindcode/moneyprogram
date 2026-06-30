@@ -2461,6 +2461,41 @@ function AccessSection() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [search, setSearch] = useState("");
+  const [issuing, setIssuing] = useState("");
+  const [issued, setIssued] = useState(null);
+  const issuePassword = async e => {
+    setMsg(null);
+    setIssued(null);
+    setIssuing(e);
+    try {
+      const {
+        data,
+        error
+      } = await sb.functions.invoke("admin-set-password", {
+        body: {
+          email: e
+        }
+      });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      setIssued(data);
+      load();
+    } catch (ex) {
+      setMsg({
+        type: "err",
+        text: "Не удалось выдать пароль: " + (ex && ex.message || "")
+      });
+    } finally {
+      setIssuing("");
+    }
+  };
+  const copyCred = () => {
+    if (!issued) return;
+    const txt = "Вход в «Протокол денег»: thebodymindcode.github.io/moneyprogram\nЛогин: " + issued.email + "\nПароль: " + issued.password;
+    try {
+      navigator.clipboard.writeText(txt);
+    } catch (e) {}
+  };
   const load = async () => {
     const [aRes, lRes] = await Promise.all([sb.from("admins").select("email"), sb.from("allowed_emails").select("email, note, created_at").order("created_at", {
       ascending: true
@@ -2586,7 +2621,25 @@ function AccessSection() {
     disabled: busy
   }, "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C")), msg && React.createElement("div", {
     className: "access-msg " + msg.type
-  }, msg.text), list && list.length > 0 && React.createElement("div", {
+  }, msg.text), issued && React.createElement("div", {
+    className: "access-cred"
+  }, React.createElement("div", {
+    className: "ac-title"
+  }, issued.created ? "Аккаунт создан. " : "", "\u0413\u043E\u0442\u043E\u0432\u043E. \u041E\u0442\u043F\u0440\u0430\u0432\u044C\u0442\u0435 \u0447\u0435\u043B\u043E\u0432\u0435\u043A\u0443 \u044D\u0442\u0438 \u0434\u0430\u043D\u043D\u044B\u0435:"), React.createElement("div", {
+    className: "ac-row"
+  }, React.createElement("span", null, "\u041B\u043E\u0433\u0438\u043D"), React.createElement("b", null, issued.email)), React.createElement("div", {
+    className: "ac-row"
+  }, React.createElement("span", null, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("b", {
+    className: "ac-pass"
+  }, issued.password)), React.createElement("div", {
+    className: "ac-actions"
+  }, React.createElement("button", {
+    className: "btn btn-sm btn-primary",
+    onClick: copyCred
+  }, "\u0421\u043A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C"), React.createElement("button", {
+    className: "btn btn-sm btn-ghost",
+    onClick: () => setIssued(null)
+  }, "\u0417\u0430\u043A\u0440\u044B\u0442\u044C"))), list && list.length > 0 && React.createElement("div", {
     className: "access-toolbar"
   }, React.createElement("span", {
     className: "access-count"
@@ -2646,11 +2699,18 @@ function AccessSection() {
       }, "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"), React.createElement("button", {
         className: "btn btn-ghost btn-sm",
         onClick: () => setConfirm(null)
-      }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : React.createElement("button", {
+      }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : React.createElement("span", {
+        className: "access-actions"
+      }, React.createElement("button", {
+        className: "icon-btn key",
+        title: "\u0412\u044B\u0434\u0430\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
+        disabled: issuing === r.email,
+        onClick: () => issuePassword(r.email)
+      }, issuing === r.email ? "…" : React.createElement(Ico.lock, null)), React.createElement("button", {
         className: "icon-btn",
         title: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
         onClick: () => setConfirm(r.email)
-      }, "\xD7"));
+      }, "\xD7")));
     });
   })()));
 }

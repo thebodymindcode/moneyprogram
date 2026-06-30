@@ -1400,6 +1400,27 @@ function AccessSection() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [search, setSearch] = useState("");
+  const [issuing, setIssuing] = useState("");   // для какой почты сейчас выдаём пароль
+  const [issued, setIssued] = useState(null);   // {email, password, created} после выдачи
+
+  // выдать/сбросить пароль участнику и показать логин с паролем для отправки
+  const issuePassword = async (e) => {
+    setMsg(null); setIssued(null); setIssuing(e);
+    try {
+      const { data, error } = await sb.functions.invoke("admin-set-password", { body: { email: e } });
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+      setIssued(data);
+      load();
+    } catch (ex) {
+      setMsg({ type: "err", text: "Не удалось выдать пароль: " + ((ex && ex.message) || "") });
+    } finally { setIssuing(""); }
+  };
+  const copyCred = () => {
+    if (!issued) return;
+    const txt = "Вход в «Протокол денег»: thebodymindcode.github.io/moneyprogram\nЛогин: " + issued.email + "\nПароль: " + issued.password;
+    try { navigator.clipboard.writeText(txt); } catch (e) {}
+  };
 
   const load = async () => {
     // оба запроса разом, так быстрее, чем один за другим
@@ -1473,6 +1494,18 @@ function AccessSection() {
 
       {msg && <div className={"access-msg " + msg.type}>{msg.text}</div>}
 
+      {issued && (
+        <div className="access-cred">
+          <div className="ac-title">{issued.created ? "Аккаунт создан. " : ""}Готово. Отправьте человеку эти данные:</div>
+          <div className="ac-row"><span>Логин</span><b>{issued.email}</b></div>
+          <div className="ac-row"><span>Пароль</span><b className="ac-pass">{issued.password}</b></div>
+          <div className="ac-actions">
+            <button className="btn btn-sm btn-primary" onClick={copyCred}>Скопировать</button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setIssued(null)}>Закрыть</button>
+          </div>
+        </div>
+      )}
+
       {list && list.length > 0 && (
         <div className="access-toolbar">
           <span className="access-count">Всего: {list.length}{admins.length ? " · админов: " + admins.length : ""}</span>
@@ -1504,7 +1537,11 @@ function AccessSection() {
                     <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Отмена</button>
                   </span>
                 ) : (
-                  <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
+                  <span className="access-actions">
+                    <button className="icon-btn key" title="Выдать пароль" disabled={issuing === r.email}
+                      onClick={() => issuePassword(r.email)}>{issuing === r.email ? "…" : <Ico.lock />}</button>
+                    <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
+                  </span>
                 )}
               </div>
             );
