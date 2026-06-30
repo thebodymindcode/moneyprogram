@@ -2248,14 +2248,14 @@ function App() {
   // если курс грузится слишком долго (часто встроенный браузер Telegram душит запросы), показываем подсказку
   useEffect(() => {
     if (days !== null || !session) { setLoadSlow(false); return; }
-    const t = setTimeout(() => setLoadSlow(true), 12000);
+    const t = setTimeout(() => setLoadSlow(true), 8000);
     return () => clearTimeout(t);
   }, [days, session]);
 
   // тот же сторож для самого первого экрана (проверка входа)
   useEffect(() => {
     if (session !== undefined) { setBootSlow(false); return; }
-    const t = setTimeout(() => setBootSlow(true), 8000);
+    const t = setTimeout(() => setBootSlow(true), 6000);
     return () => clearTimeout(t);
   }, [session]);
 

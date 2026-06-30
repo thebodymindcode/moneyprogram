@@ -3841,7 +3841,7 @@ function App() {
       setLoadSlow(false);
       return;
     }
-    const t = setTimeout(() => setLoadSlow(true), 12000);
+    const t = setTimeout(() => setLoadSlow(true), 8000);
     return () => clearTimeout(t);
   }, [days, session]);
   useEffect(() => {
@@ -3849,7 +3849,7 @@ function App() {
       setBootSlow(false);
       return;
     }
-    const t = setTimeout(() => setBootSlow(true), 8000);
+    const t = setTimeout(() => setBootSlow(true), 6000);
     return () => clearTimeout(t);
   }, [session]);
   const unlockedCount = useMemo(() => days ? unlockedCountNow(days.length) : 0, [days]);
