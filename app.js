@@ -2089,10 +2089,49 @@ function Guide() {
     className: "gd-install"
   }, React.createElement(InstallButton, {
     force: true
-  }))), React.createElement(GuideShot, {
-    src: "guide-img/ios-install.png",
-    cap: "\u0410\u0439\u0444\u043E\u043D, Safari: \xAB\u041F\u043E\u0434\u0435\u043B\u0438\u0442\u044C\u0441\u044F\xBB, \u0437\u0430\u0442\u0435\u043C \xAB\u041D\u0430 \u044D\u043A\u0440\u0430\u043D \u201E\u0414\u043E\u043C\u043E\u0439\u201C\xBB, \u0437\u0430\u0442\u0435\u043C \xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C\xBB."
   })), React.createElement("div", {
+    className: "gd-film"
+  }, React.createElement("div", {
+    className: "it"
+  }, React.createElement("img", {
+    src: "guide-img/ios-1.jpg",
+    alt: "\u0428\u0430\u0433 1",
+    loading: "lazy"
+  }), React.createElement("div", {
+    className: "n"
+  }, "1"), React.createElement("div", {
+    className: "c"
+  }, "\u041E\u0442\u043A\u0440\u043E\u0439 \u0432 Safari, \u043D\u0430\u0436\u043C\u0438 \xAB\u2022\u2022\u2022\xBB \u0432\u043D\u0438\u0437\u0443")), React.createElement("div", {
+    className: "it"
+  }, React.createElement("img", {
+    src: "guide-img/ios-2.jpg",
+    alt: "\u0428\u0430\u0433 2",
+    loading: "lazy"
+  }), React.createElement("div", {
+    className: "n"
+  }, "2"), React.createElement("div", {
+    className: "c"
+  }, "\u041E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u043C\u0435\u043D\u044E \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0439")), React.createElement("div", {
+    className: "it"
+  }, React.createElement("img", {
+    src: "guide-img/ios-3.jpg",
+    alt: "\u0428\u0430\u0433 3",
+    loading: "lazy"
+  }), React.createElement("div", {
+    className: "n"
+  }, "3"), React.createElement("div", {
+    className: "c"
+  }, "\u041F\u0440\u043E\u043B\u0438\u0441\u0442\u0430\u0439 \u0432\u043D\u0438\u0437, \xAB\u041D\u0430 \u044D\u043A\u0440\u0430\u043D \u201E\u0414\u043E\u043C\u043E\u0439\u201C\xBB")), React.createElement("div", {
+    className: "it"
+  }, React.createElement("img", {
+    src: "guide-img/ios-4.jpg",
+    alt: "\u0428\u0430\u0433 4",
+    loading: "lazy"
+  }), React.createElement("div", {
+    className: "n"
+  }, "4"), React.createElement("div", {
+    className: "c"
+  }, "\u041D\u0430\u0436\u043C\u0438 \xAB\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C\xBB \u0441\u043F\u0440\u0430\u0432\u0430 \u0441\u0432\u0435\u0440\u0445\u0443"))))), React.createElement("div", {
     className: "gd-faq-head"
   }, React.createElement("div", {
     className: "gd-ico"

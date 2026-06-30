@@ -1147,8 +1147,13 @@ function Guide() {
           </ul>
           <div className="gd-tip"><Ico.info /><span>На старых айфонах вместо «•••» внизу бывает кнопка «Поделиться» (квадрат со стрелкой вверх). В другом браузере (Яндекс, Chrome) пункт может называться «Добавить ярлык на телефон». Дальше всё одинаково.</span></div>
           <div className="gd-install"><InstallButton force /></div>
+          <div className="gd-film">
+            <div className="it"><img src="guide-img/ios-1.jpg" alt="Шаг 1" loading="lazy" /><div className="n">1</div><div className="c">Открой в Safari, нажми «•••» внизу</div></div>
+            <div className="it"><img src="guide-img/ios-2.jpg" alt="Шаг 2" loading="lazy" /><div className="n">2</div><div className="c">Откроется меню действий</div></div>
+            <div className="it"><img src="guide-img/ios-3.jpg" alt="Шаг 3" loading="lazy" /><div className="n">3</div><div className="c">Пролистай вниз, «На экран „Домой“»</div></div>
+            <div className="it"><img src="guide-img/ios-4.jpg" alt="Шаг 4" loading="lazy" /><div className="n">4</div><div className="c">Нажми «Добавить» справа сверху</div></div>
+          </div>
         </div>
-        <GuideShot src="guide-img/ios-install.png" cap="Айфон, Safari: «Поделиться», затем «На экран „Домой“», затем «Добавить»." />
       </div>
 
       {/* частые вопросы */}
