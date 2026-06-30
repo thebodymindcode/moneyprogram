@@ -2463,9 +2463,11 @@ function AccessSection() {
   const [search, setSearch] = useState("");
   const [issuing, setIssuing] = useState("");
   const [issued, setIssued] = useState(null);
+  const [confirmIssue, setConfirmIssue] = useState(null);
   const issuePassword = async e => {
     setMsg(null);
     setIssued(null);
+    setConfirmIssue(null);
     setIssuing(e);
     try {
       const {
@@ -2699,17 +2701,31 @@ function AccessSection() {
       }, "\u0423\u0434\u0430\u043B\u0438\u0442\u044C"), React.createElement("button", {
         className: "btn btn-ghost btn-sm",
         onClick: () => setConfirm(null)
+      }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : confirmIssue === r.email ? React.createElement("span", {
+        className: "access-confirm"
+      }, React.createElement("button", {
+        className: "btn btn-sm btn-primary",
+        onClick: () => issuePassword(r.email),
+        disabled: issuing === r.email
+      }, issuing === r.email ? "…" : "Сбросить пароль"), React.createElement("button", {
+        className: "btn btn-ghost btn-sm",
+        onClick: () => setConfirmIssue(null)
       }, "\u041E\u0442\u043C\u0435\u043D\u0430")) : React.createElement("span", {
         className: "access-actions"
       }, React.createElement("button", {
         className: "icon-btn key",
         title: "\u0412\u044B\u0434\u0430\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
-        disabled: issuing === r.email,
-        onClick: () => issuePassword(r.email)
-      }, issuing === r.email ? "…" : React.createElement(Ico.lock, null)), React.createElement("button", {
+        onClick: () => {
+          setConfirm(null);
+          setConfirmIssue(r.email);
+        }
+      }, React.createElement(Ico.lock, null)), React.createElement("button", {
         className: "icon-btn",
         title: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
-        onClick: () => setConfirm(r.email)
+        onClick: () => {
+          setConfirmIssue(null);
+          setConfirm(r.email);
+        }
       }, "\xD7")));
     });
   })()));

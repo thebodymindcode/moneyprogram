@@ -1402,10 +1402,11 @@ function AccessSection() {
   const [search, setSearch] = useState("");
   const [issuing, setIssuing] = useState("");   // для какой почты сейчас выдаём пароль
   const [issued, setIssued] = useState(null);   // {email, password, created} после выдачи
+  const [confirmIssue, setConfirmIssue] = useState(null);  // подтверждение сброса пароля
 
   // выдать/сбросить пароль участнику и показать логин с паролем для отправки
   const issuePassword = async (e) => {
-    setMsg(null); setIssued(null); setIssuing(e);
+    setMsg(null); setIssued(null); setConfirmIssue(null); setIssuing(e);
     try {
       const { data, error } = await sb.functions.invoke("admin-set-password", { body: { email: e } });
       if (error) throw error;
@@ -1536,11 +1537,15 @@ function AccessSection() {
                     <button className="btn btn-sm access-del" onClick={() => remove(r.email)} disabled={busy}>Удалить</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Отмена</button>
                   </span>
+                ) : confirmIssue === r.email ? (
+                  <span className="access-confirm">
+                    <button className="btn btn-sm btn-primary" onClick={() => issuePassword(r.email)} disabled={issuing === r.email}>{issuing === r.email ? "…" : "Сбросить пароль"}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setConfirmIssue(null)}>Отмена</button>
+                  </span>
                 ) : (
                   <span className="access-actions">
-                    <button className="icon-btn key" title="Выдать пароль" disabled={issuing === r.email}
-                      onClick={() => issuePassword(r.email)}>{issuing === r.email ? "…" : <Ico.lock />}</button>
-                    <button className="icon-btn" title="Удалить" onClick={() => setConfirm(r.email)}>×</button>
+                    <button className="icon-btn key" title="Выдать пароль" onClick={() => { setConfirm(null); setConfirmIssue(r.email); }}><Ico.lock /></button>
+                    <button className="icon-btn" title="Удалить" onClick={() => { setConfirmIssue(null); setConfirm(r.email); }}>×</button>
                   </span>
                 )}
               </div>
