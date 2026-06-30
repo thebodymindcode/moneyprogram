@@ -1381,6 +1381,7 @@ function Player({
   const [track, setTrack] = useState("voice");
   const trackRef = useRef("voice");
   const [buffering, setBuffering] = useState(false);
+  const [buf, setBuf] = useState(0);
   const wantPlay = useRef(false);
   const hasMusic = !!(day.audioPath && day.audioMusicPath);
   const pathNow = () => trackRef.current === "music" && day.audioMusicPath ? day.audioMusicPath : day.audioPath;
@@ -1403,6 +1404,7 @@ function Player({
   const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
+    setBuf(0);
     setSrc(undefined);
     signedAudioUrlCached(pathNow(), force).then(u => {
       if (my === reqId.current) setSrc(u);
@@ -1494,9 +1496,17 @@ function Player({
   const onWaiting = () => {
     if (wantPlay.current) setBuffering(true);
   };
+  const readBuf = () => {
+    const a = audioRef.current;
+    if (!a || !a.duration || !isFinite(a.duration)) return;
+    try {
+      if (a.buffered.length) setBuf(Math.min(1, a.buffered.end(a.buffered.length - 1) / a.duration));
+    } catch (e) {}
+  };
   const onTime = () => {
     const a = audioRef.current;
     if (a) setT(a.currentTime);
+    readBuf();
   };
   const onAudioError = () => {
     const a = audioRef.current;
@@ -1547,6 +1557,7 @@ function Player({
     onCanPlayThrough: onCanPlay,
     onWaiting: onWaiting,
     onStalled: onWaiting,
+    onProgress: readBuf,
     onPlaying: () => {
       setBuffering(false);
       setPlaying(true);
@@ -1599,6 +1610,11 @@ function Player({
     ref: barRef,
     onClick: seek
   }, React.createElement("i", {
+    className: "seek-buf",
+    style: {
+      width: Math.round(buf * 100) + "%"
+    }
+  }), React.createElement("i", {
     style: {
       width: pct + "%"
     }

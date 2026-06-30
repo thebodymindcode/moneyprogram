@@ -655,6 +655,7 @@ function Player({ day }) {
   const [track, setTrack] = useState("voice");     // какая дорожка играет: "voice" без музыки (по умолчанию) или "music"
   const trackRef = useRef("voice");
   const [buffering, setBuffering] = useState(false); // ждём данные аудио (показываем индикатор загрузки)
+  const [buf, setBuf] = useState(0);               // сколько урока уже подгружено вперёд (0..1), для полоски буфера
   const wantPlay = useRef(false);                  // пользователь хочет играть: запустим, как только хватит данных
   const hasMusic = !!(day.audioPath && day.audioMusicPath);   // переключатель показываем, только когда есть обе версии
   // путь активной дорожки. Если музыки нет, всегда основная (без музыки)
@@ -677,6 +678,7 @@ function Player({ day }) {
   const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
+    setBuf(0);
     setSrc(undefined);
     signedAudioUrlCached(pathNow(), force)
       .then((u) => { if (my === reqId.current) setSrc(u); })
@@ -749,7 +751,12 @@ function Player({ day }) {
     if (a && wantPlay.current && a.paused) a.play().catch(() => {});
   };
   const onWaiting = () => { if (wantPlay.current) setBuffering(true); };   // буфер кончился по ходу
-  const onTime = () => { const a = audioRef.current; if (a) setT(a.currentTime); };
+  // сколько подгружено вперёд (для светлой полоски буфера на таймлайне)
+  const readBuf = () => {
+    const a = audioRef.current; if (!a || !a.duration || !isFinite(a.duration)) return;
+    try { if (a.buffered.length) setBuf(Math.min(1, a.buffered.end(a.buffered.length - 1) / a.duration)); } catch (e) {}
+  };
+  const onTime = () => { const a = audioRef.current; if (a) setT(a.currentTime); readBuf(); };
   // сбой (просроченная/битая ссылка, разрыв сети): берём СВЕЖУЮ ссылку и продолжаем с того же места
   const onAudioError = () => {
     const a = audioRef.current;
@@ -788,7 +795,7 @@ function Player({ day }) {
       {!loading && (
         <audio ref={audioRef} src={src} preload="metadata"
           onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onError={onAudioError}
-          onCanPlay={onCanPlay} onCanPlayThrough={onCanPlay} onWaiting={onWaiting} onStalled={onWaiting}
+          onCanPlay={onCanPlay} onCanPlayThrough={onCanPlay} onWaiting={onWaiting} onStalled={onWaiting} onProgress={readBuf}
           onPlaying={() => { setBuffering(false); setPlaying(true); }}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
           onEnded={() => { setPlaying(false); wantPlay.current = false; }} />
@@ -813,6 +820,7 @@ function Player({ day }) {
       )}
       <div className="seek">
         <div className="seek-bar" ref={barRef} onClick={seek}>
+          <i className="seek-buf" style={{ width: Math.round(buf * 100) + "%" }} />
           <i style={{ width: pct + "%" }} />
           <b style={{ left: pct + "%" }} />
         </div>
