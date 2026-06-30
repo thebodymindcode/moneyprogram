@@ -3871,7 +3871,7 @@ function App() {
   });
   if (session === undefined) return React.createElement(Splash, {
     text: "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026",
-    sub: bootSlow ? "Долго грузится? Проверьте интернет, попробуйте мобильный интернет вместо Wi-Fi и отключите VPN. Открыли из Telegram, откройте в Safari. Или нажмите «Обновить»." : "",
+    sub: bootSlow ? "Долго грузится? Проверьте интернет, попробуйте мобильный интернет вместо Wi-Fi и отключите VPN. Открыли из Telegram, откройте в обычном браузере. Или нажмите «Обновить»." : "",
     onReload: bootSlow ? () => window.location.reload() : null
   });
   if (recovery) return React.createElement(NewPassword, {
@@ -3880,7 +3880,7 @@ function App() {
   if (!session) return React.createElement(Auth, null);
   if (days === null) return React.createElement(Splash, {
     text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u043A\u0443\u0440\u0441\u2026",
-    sub: loadSlow ? "Долго грузится? Включите мобильный интернет вместо Wi-Fi (или наоборот) и отключите VPN. Открыли из Telegram, откройте в Safari. Не помогает, напишите в @TheBodyMindCode_support." : "",
+    sub: loadSlow ? "Долго грузится? Включите мобильный интернет вместо Wi-Fi (или наоборот) и отключите VPN. Открыли из Telegram, откройте его в обычном браузере. Не помогает, напишите в @TheBodyMindCode_support." : "",
     onReload: loadSlow ? () => window.location.reload() : null
   });
   if (loadErr && (!days || !days.length)) return React.createElement(Splash, {
