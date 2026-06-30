@@ -39,6 +39,21 @@ async function signedAudioUrl(path, tries = 3) {
   throw lastErr || new Error("не удалось подписать ссылку");
 }
 
+// кеш подписанных ссылок: TTL 6ч, переиспользуем в пределах 5ч, чтобы не идти в сеть
+// за подписью на КАЖДЫЙ запуск и переключение дорожки. Это и убирает задержку.
+const _audioUrlCache = new Map();   // path -> { url, ts }
+const AUDIO_URL_FRESH_MS = 5 * 60 * 60 * 1000;
+async function signedAudioUrlCached(path, force) {
+  if (!path) throw new Error("нет пути к аудио");
+  if (!force) {
+    const c = _audioUrlCache.get(path);
+    if (c && (Date.now() - c.ts) < AUDIO_URL_FRESH_MS) return c.url;
+  }
+  const url = await signedAudioUrl(path);
+  _audioUrlCache.set(path, { url, ts: Date.now() });
+  return url;
+}
+
 // прочитать длительность аудио из локального файла (до загрузки), в секундах
 function readAudioDuration(file) {
   return new Promise((resolve) => {
@@ -639,6 +654,8 @@ function Player({ day }) {
   const [speed, setSpeed] = useState(loadSpeed);   // скорость воспроизведения, общая для всех уроков
   const [track, setTrack] = useState("voice");     // какая дорожка играет: "voice" без музыки (по умолчанию) или "music"
   const trackRef = useRef("voice");
+  const [buffering, setBuffering] = useState(false); // ждём данные аудио (показываем индикатор загрузки)
+  const wantPlay = useRef(false);                  // пользователь хочет играть: запустим, как только хватит данных
   const hasMusic = !!(day.audioPath && day.audioMusicPath);   // переключатель показываем, только когда есть обе версии
   // путь активной дорожки. Если музыки нет, всегда основная (без музыки)
   const pathNow = () => (trackRef.current === "music" && day.audioMusicPath) ? day.audioMusicPath : day.audioPath;
@@ -656,12 +673,12 @@ function Player({ day }) {
     if (a) { try { a.preservesPitch = true; a.playbackRate = speed; } catch (e) {} }
   }, [speed, src]);
 
-  // взять (или переполучить) подписанную ссылку. resume = позиция для продолжения
-  const loadSrc = (resume) => {
+  // взять ссылку (из кеша, мгновенно; force=свежая при сбое). resume = позиция для продолжения
+  const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
     setSrc(undefined);
-    signedAudioUrl(pathNow())
+    signedAudioUrlCached(pathNow(), force)
       .then((u) => { if (my === reqId.current) setSrc(u); })
       .catch(() => { if (my === reqId.current) setSrc(""); });
   };
@@ -672,20 +689,24 @@ function Player({ day }) {
     if (next === trackRef.current || !hasMusic) return;
     const a = audioRef.current;
     const pos = a ? a.currentTime : 0;
-    shouldResume.current = a ? !a.paused : false;
+    const wasPlaying = a ? !a.paused : false;
+    shouldResume.current = wasPlaying;
+    wantPlay.current = wasPlaying;
     recoverLeft.current = 2;
+    if (wasPlaying) setBuffering(true);
     trackRef.current = next; setTrack(next);
     loadSrc(pos);
   };
 
   // смена дня: сбрасываем на дорожку без музыки и берём ссылку заново
   useEffect(() => {
-    setPlaying(false); setT(0); setDur(day.duration || 0);
-    recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false;
+    setPlaying(false); setT(0); setDur(day.duration || 0); setBuffering(false);
+    recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false; wantPlay.current = false;
     trackRef.current = "voice"; setTrack("voice");
     if (!day.audioPath) { reqId.current++; setSrc(null); return; }
     loadSrc(0);
-    // loadSrc и day.audioPath стабильны для этого дня
+    // заранее греем ссылку второй дорожки, чтобы переключение «С музыкой» было мгновенным
+    if (day.audioMusicPath) signedAudioUrlCached(day.audioMusicPath).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.id, day.audioPath, day.audioMusicPath]);
 
@@ -702,7 +723,7 @@ function Player({ day }) {
           </div>
           {failed && (
             <button className="play-btn" title="Повторить"
-              onClick={() => { recoverLeft.current = 2; loadSrc(0); }}><Ico.play /></button>
+              onClick={() => { recoverLeft.current = 2; wantPlay.current = true; setBuffering(true); loadSrc(0, true); }}><Ico.play /></button>
           )}
         </div>
         <div className="player-empty">
@@ -713,29 +734,45 @@ function Player({ day }) {
   }
 
   const loading = src === undefined;
+  const busy = loading || buffering;   // показываем индикатор загрузки на кнопке
   const onLoaded = () => {
     const a = audioRef.current; if (!a) return;
     try { a.preservesPitch = true; a.playbackRate = speed; } catch (e) {}
     if (isFinite(a.duration)) setDur(a.duration);
     if (resumeAt.current > 0) { try { a.currentTime = resumeAt.current; } catch (e) {} resumeAt.current = 0; }
-    if (shouldResume.current) { shouldResume.current = false; a.play().catch(() => {}); }
+    // сам запуск делаем в onCanPlay, когда данных уже хватает, чтобы не дёргать play() вхолостую
   };
+  // данных хватает для старта: убираем индикатор и запускаем, если человек хотел играть
+  const onCanPlay = () => {
+    setBuffering(false);
+    const a = audioRef.current;
+    if (a && wantPlay.current && a.paused) a.play().catch(() => {});
+  };
+  const onWaiting = () => { if (wantPlay.current) setBuffering(true); };   // буфер кончился по ходу
   const onTime = () => { const a = audioRef.current; if (a) setT(a.currentTime); };
-  // сбой воспроизведения (просроченная/битая ссылка, разрыв сети): тихо переполучаем ссылку
+  // сбой (просроченная/битая ссылка, разрыв сети): берём СВЕЖУЮ ссылку и продолжаем с того же места
   const onAudioError = () => {
     const a = audioRef.current;
     if (recoverLeft.current > 0) {
       recoverLeft.current -= 1;
-      shouldResume.current = a ? !a.paused : false;
-      loadSrc(a ? a.currentTime : 0);
+      wantPlay.current = a ? !a.paused : wantPlay.current;
+      if (wantPlay.current) setBuffering(true);
+      loadSrc(a ? a.currentTime : 0, true);
     } else {
-      setSrc("");
+      setBuffering(false); setSrc("");
     }
   };
   const toggle = () => {
     const a = audioRef.current; if (!a) return;
-    if (a.paused) a.play().catch(() => setPlaying(false));
-    else a.pause();
+    if (a.paused) {
+      wantPlay.current = true;
+      if (a.readyState < 3) setBuffering(true);   // ещё не готово, покажем загрузку и стартуем сами
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } else {
+      wantPlay.current = false; setBuffering(false);
+      a.pause();
+    }
   };
   const seek = (e) => {
     const a = audioRef.current; if (!a || !dur) return;
@@ -751,7 +788,10 @@ function Player({ day }) {
       {!loading && (
         <audio ref={audioRef} src={src} preload="metadata"
           onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onError={onAudioError}
-          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
+          onCanPlay={onCanPlay} onCanPlayThrough={onCanPlay} onWaiting={onWaiting} onStalled={onWaiting}
+          onPlaying={() => { setBuffering(false); setPlaying(true); }}
+          onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+          onEnded={() => { setPlaying(false); wantPlay.current = false; }} />
       )}
       <div className="player">
         <div className="cover"><Ico.wave /></div>
@@ -759,8 +799,9 @@ function Player({ day }) {
           <div className="k">Урок дня</div>
           <div className="t">{day.title}</div>
         </div>
-        <button className="play-btn" onClick={toggle} disabled={loading}>
-          {playing ? <Ico.pause /> : <Ico.play />}
+        <button className="play-btn" onClick={toggle} disabled={loading} aria-busy={busy}
+          title={busy ? "Загрузка…" : (playing ? "Пауза" : "Слушать")}>
+          {busy ? <span className="play-spin" /> : (playing ? <Ico.pause /> : <Ico.play />)}
         </button>
       </div>
       {hasMusic && (
@@ -775,7 +816,7 @@ function Player({ day }) {
           <i style={{ width: pct + "%" }} />
           <b style={{ left: pct + "%" }} />
         </div>
-        <div className="seek-time"><span>{loading ? "загрузка…" : fmt(t)}</span><span>{fmt(dur)}</span></div>
+        <div className="seek-time"><span>{(loading || (buffering && !t)) ? "загрузка…" : fmt(t)}</span><span>{fmt(dur)}</span></div>
       </div>
       <div className="speed-box">
         <div className="speed-head">

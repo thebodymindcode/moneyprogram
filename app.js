@@ -43,6 +43,21 @@ async function signedAudioUrl(path, tries = 3) {
   }
   throw lastErr || new Error("не удалось подписать ссылку");
 }
+const _audioUrlCache = new Map();
+const AUDIO_URL_FRESH_MS = 5 * 60 * 60 * 1000;
+async function signedAudioUrlCached(path, force) {
+  if (!path) throw new Error("нет пути к аудио");
+  if (!force) {
+    const c = _audioUrlCache.get(path);
+    if (c && Date.now() - c.ts < AUDIO_URL_FRESH_MS) return c.url;
+  }
+  const url = await signedAudioUrl(path);
+  _audioUrlCache.set(path, {
+    url,
+    ts: Date.now()
+  });
+  return url;
+}
 function readAudioDuration(file) {
   return new Promise(resolve => {
     try {
@@ -1365,6 +1380,8 @@ function Player({
   const [speed, setSpeed] = useState(loadSpeed);
   const [track, setTrack] = useState("voice");
   const trackRef = useRef("voice");
+  const [buffering, setBuffering] = useState(false);
+  const wantPlay = useRef(false);
   const hasMusic = !!(day.audioPath && day.audioMusicPath);
   const pathNow = () => trackRef.current === "music" && day.audioMusicPath ? day.audioMusicPath : day.audioPath;
   const applySpeed = v => {
@@ -1383,11 +1400,11 @@ function Player({
       } catch (e) {}
     }
   }, [speed, src]);
-  const loadSrc = resume => {
+  const loadSrc = (resume, force) => {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
     setSrc(undefined);
-    signedAudioUrl(pathNow()).then(u => {
+    signedAudioUrlCached(pathNow(), force).then(u => {
       if (my === reqId.current) setSrc(u);
     }).catch(() => {
       if (my === reqId.current) setSrc("");
@@ -1397,8 +1414,11 @@ function Player({
     if (next === trackRef.current || !hasMusic) return;
     const a = audioRef.current;
     const pos = a ? a.currentTime : 0;
-    shouldResume.current = a ? !a.paused : false;
+    const wasPlaying = a ? !a.paused : false;
+    shouldResume.current = wasPlaying;
+    wantPlay.current = wasPlaying;
     recoverLeft.current = 2;
+    if (wasPlaying) setBuffering(true);
     trackRef.current = next;
     setTrack(next);
     loadSrc(pos);
@@ -1407,9 +1427,11 @@ function Player({
     setPlaying(false);
     setT(0);
     setDur(day.duration || 0);
+    setBuffering(false);
     recoverLeft.current = 2;
     resumeAt.current = 0;
     shouldResume.current = false;
+    wantPlay.current = false;
     trackRef.current = "voice";
     setTrack("voice");
     if (!day.audioPath) {
@@ -1418,6 +1440,7 @@ function Player({
       return;
     }
     loadSrc(0);
+    if (day.audioMusicPath) signedAudioUrlCached(day.audioMusicPath).catch(() => {});
   }, [day.id, day.audioPath, day.audioMusicPath]);
   if (src === null || src === "") {
     const failed = src === "";
@@ -1438,13 +1461,16 @@ function Player({
       title: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C",
       onClick: () => {
         recoverLeft.current = 2;
-        loadSrc(0);
+        wantPlay.current = true;
+        setBuffering(true);
+        loadSrc(0, true);
       }
     }, React.createElement(Ico.play, null))), React.createElement("div", {
       className: "player-empty"
     }, failed ? "Аудио не открылось. Нажми кнопку справа, чтобы попробовать ещё раз." : "Аудио для этого дня пока не загружено."));
   }
   const loading = src === undefined;
+  const busy = loading || buffering;
   const onLoaded = () => {
     const a = audioRef.current;
     if (!a) return;
@@ -1459,10 +1485,14 @@ function Player({
       } catch (e) {}
       resumeAt.current = 0;
     }
-    if (shouldResume.current) {
-      shouldResume.current = false;
-      a.play().catch(() => {});
-    }
+  };
+  const onCanPlay = () => {
+    setBuffering(false);
+    const a = audioRef.current;
+    if (a && wantPlay.current && a.paused) a.play().catch(() => {});
+  };
+  const onWaiting = () => {
+    if (wantPlay.current) setBuffering(true);
   };
   const onTime = () => {
     const a = audioRef.current;
@@ -1472,16 +1502,27 @@ function Player({
     const a = audioRef.current;
     if (recoverLeft.current > 0) {
       recoverLeft.current -= 1;
-      shouldResume.current = a ? !a.paused : false;
-      loadSrc(a ? a.currentTime : 0);
+      wantPlay.current = a ? !a.paused : wantPlay.current;
+      if (wantPlay.current) setBuffering(true);
+      loadSrc(a ? a.currentTime : 0, true);
     } else {
+      setBuffering(false);
       setSrc("");
     }
   };
   const toggle = () => {
     const a = audioRef.current;
     if (!a) return;
-    if (a.paused) a.play().catch(() => setPlaying(false));else a.pause();
+    if (a.paused) {
+      wantPlay.current = true;
+      if (a.readyState < 3) setBuffering(true);
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+    } else {
+      wantPlay.current = false;
+      setBuffering(false);
+      a.pause();
+    }
   };
   const seek = e => {
     const a = audioRef.current;
@@ -1502,9 +1543,20 @@ function Player({
     onLoadedMetadata: onLoaded,
     onTimeUpdate: onTime,
     onError: onAudioError,
+    onCanPlay: onCanPlay,
+    onCanPlayThrough: onCanPlay,
+    onWaiting: onWaiting,
+    onStalled: onWaiting,
+    onPlaying: () => {
+      setBuffering(false);
+      setPlaying(true);
+    },
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),
-    onEnded: () => setPlaying(false)
+    onEnded: () => {
+      setPlaying(false);
+      wantPlay.current = false;
+    }
   }), React.createElement("div", {
     className: "player"
   }, React.createElement("div", {
@@ -1518,8 +1570,12 @@ function Player({
   }, day.title)), React.createElement("button", {
     className: "play-btn",
     onClick: toggle,
-    disabled: loading
-  }, playing ? React.createElement(Ico.pause, null) : React.createElement(Ico.play, null))), hasMusic && React.createElement("div", {
+    disabled: loading,
+    "aria-busy": busy,
+    title: busy ? "Загрузка…" : playing ? "Пауза" : "Слушать"
+  }, busy ? React.createElement("span", {
+    className: "play-spin"
+  }) : playing ? React.createElement(Ico.pause, null) : React.createElement(Ico.play, null))), hasMusic && React.createElement("div", {
     className: "track-switch",
     role: "group",
     "aria-label": "\u0412\u0435\u0440\u0441\u0438\u044F \u0430\u0443\u0434\u0438\u043E"
@@ -1552,7 +1608,7 @@ function Player({
     }
   })), React.createElement("div", {
     className: "seek-time"
-  }, React.createElement("span", null, loading ? "загрузка…" : fmt(t)), React.createElement("span", null, fmt(dur)))), React.createElement("div", {
+  }, React.createElement("span", null, loading || buffering && !t ? "загрузка…" : fmt(t)), React.createElement("span", null, fmt(dur)))), React.createElement("div", {
     className: "speed-box"
   }, React.createElement("div", {
     className: "speed-head"
