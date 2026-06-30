@@ -136,8 +136,10 @@ async function loadDaysFromDb() {
     title: d.title,
     lesson: d.lesson || "",
     duration: Math.round((Number(d.duration_min) || 0) * 60),
-    audioPath: d.audio_url || "",                 // путь к файлу в Storage
+    audioPath: d.audio_url || "",                 // путь к файлу в Storage (версия без музыки, основная)
     audioName: d.audio_name || "",                // имя файла для показа в админке
+    audioMusicPath: d.audio_music_url || "",      // вторая дорожка: с музыкой (по желанию)
+    audioMusicName: d.audio_music_name || "",     // имя файла версии с музыкой
     note: noteMap[d.day_number] || "",
     state: (ciMap[d.day_number] != null ? Number(ciMap[d.day_number]) : null),     // 0 тревога … 10 спокойствие, из базы
     tasks: (tasksRes.data || [])
@@ -635,6 +637,11 @@ function Player({ day }) {
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
   const [speed, setSpeed] = useState(loadSpeed);   // скорость воспроизведения, общая для всех уроков
+  const [track, setTrack] = useState("voice");     // какая дорожка играет: "voice" без музыки (по умолчанию) или "music"
+  const trackRef = useRef("voice");
+  const hasMusic = !!(day.audioPath && day.audioMusicPath);   // переключатель показываем, только когда есть обе версии
+  // путь активной дорожки. Если музыки нет, всегда основная (без музыки)
+  const pathNow = () => (trackRef.current === "music" && day.audioMusicPath) ? day.audioMusicPath : day.audioPath;
 
   // меняем скорость и запоминаем выбор, чтобы держался на всех днях и после перезахода
   const applySpeed = (v) => {
@@ -654,20 +661,33 @@ function Player({ day }) {
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
     setSrc(undefined);
-    signedAudioUrl(day.audioPath)
+    signedAudioUrl(pathNow())
       .then((u) => { if (my === reqId.current) setSrc(u); })
       .catch(() => { if (my === reqId.current) setSrc(""); });
   };
 
-  // смена дня: сбрасываем и берём ссылку заново
+  // переключить дорожку (без музыки / с музыкой) на том же плеере: старая останавливается,
+  // новая стартует с той же секунды. Двух дорожек разом не бывает, наезд невозможен.
+  const switchTrack = (next) => {
+    if (next === trackRef.current || !hasMusic) return;
+    const a = audioRef.current;
+    const pos = a ? a.currentTime : 0;
+    shouldResume.current = a ? !a.paused : false;
+    recoverLeft.current = 2;
+    trackRef.current = next; setTrack(next);
+    loadSrc(pos);
+  };
+
+  // смена дня: сбрасываем на дорожку без музыки и берём ссылку заново
   useEffect(() => {
     setPlaying(false); setT(0); setDur(day.duration || 0);
     recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false;
+    trackRef.current = "voice"; setTrack("voice");
     if (!day.audioPath) { reqId.current++; setSrc(null); return; }
     loadSrc(0);
     // loadSrc и day.audioPath стабильны для этого дня
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day.id, day.audioPath]);
+  }, [day.id, day.audioPath, day.audioMusicPath]);
 
   // аудио для дня не загружено или совсем не открылось: честное сообщение, без фейкового таймера
   if (src === null || src === "") {
@@ -743,6 +763,13 @@ function Player({ day }) {
           {playing ? <Ico.pause /> : <Ico.play />}
         </button>
       </div>
+      {hasMusic && (
+        <div className="track-switch" role="group" aria-label="Версия аудио">
+          <span className="ts-thumb" style={{ transform: track === "music" ? "translateX(100%)" : "translateX(0)" }} />
+          <button type="button" className={track === "voice" ? "on" : ""} onClick={() => switchTrack("voice")}>Без музыки</button>
+          <button type="button" className={track === "music" ? "on" : ""} onClick={() => switchTrack("music")}>С музыкой</button>
+        </div>
+      )}
       <div className="seek">
         <div className="seek-bar" ref={barRef} onClick={seek}>
           <i style={{ width: pct + "%" }} />
@@ -1516,7 +1543,7 @@ function StatsSection({ totalDays }) {
 // Карточка одного дня вынесена и обёрнута в memo: при правке одного дня
 // перерисовывается только его карточка, а не все 17 сразу (раньше из-за этого
 // админка подлагивала при наборе текста). Все обработчики приходят стабильными.
-const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTaskText, onTaskRemove, onTaskAdd, onPickAudio, onSaveDay }) {
+const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTaskText, onTaskRemove, onTaskAdd, onPickAudio, onPickAudioMusic, onSaveDay }) {
   const s = status || {};
   return (
     <div className="card adm-day">
@@ -1528,7 +1555,7 @@ const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTa
       <div className="adm-label">Текст урока</div>
       <textarea className="adm-input" value={day.lesson} onChange={(e) => onLesson(di, e.target.value)} />
 
-      <div className="adm-label">Аудио урока</div>
+      <div className="adm-label">Аудио без музыки (основное)</div>
       <div className="uploader">
         <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
           <Ico.upload /> Загрузить аудио
@@ -1551,6 +1578,31 @@ const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTa
         </div>
       )}
       {s.up === "error" && <div className="up-line err">{s.msg}</div>}
+
+      <div className="adm-label">Аудио с музыкой (по желанию)</div>
+      <div className="adm-hint">Вторая версия того же урока с фоновой музыкой. Если загрузить, у участника появится переключатель «Без музыки / С музыкой». По умолчанию играет версия без музыки.</div>
+      <div className="uploader">
+        <label className="btn btn-ghost btn-sm" style={{ cursor: "pointer" }}>
+          <Ico.upload /> Загрузить версию с музыкой
+          <input type="file" accept=".mp3,.m4a,.wav,.ogg,audio/*" style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files[0]; e.target.value = ""; onPickAudioMusic(di, f); }} />
+        </label>
+        <span className={"file-name" + (day.audioMusicName ? "" : " empty")}>{day.audioMusicName || "файл не выбран"}</span>
+      </div>
+
+      {s.upM === "uploading" && (
+        <div className="up-status">
+          <div className="up-bar"><i style={{ width: (s.progressM || 0) + "%" }} /></div>
+          <div className="up-line muted">Загружается… {s.progressM || 0}%</div>
+        </div>
+      )}
+      {s.upM === "done" && (
+        <div className="up-status">
+          <div className="up-line ok"><span className="ok-tick">✓</span> Загружено: {s.msgM}</div>
+          {s.previewM && <audio className="up-preview" controls preload="metadata" src={s.previewM} />}
+        </div>
+      )}
+      {s.upM === "error" && <div className="up-line err">{s.msgM}</div>}
 
       <div className="adm-label">Задания</div>
       {day.tasks.map((t, ti) => (
@@ -1593,7 +1645,7 @@ function Admin({ days, setDays, onReload }) {
   const onTaskAdd = useCallback((di) => patchDay(di, (x) => ({ ...x, tasks: [...x.tasks, { id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }] })), [patchDay]);
 
   const addDay = useCallback(() => setDays((ds) => [...ds, {
-    id: (ds.length ? ds[ds.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioPath: "", audioName: "", note: "",
+    id: (ds.length ? ds[ds.length - 1].id : 0) + 1, title: "Новый день", lesson: "Текст урока.", duration: 420, audioPath: "", audioName: "", audioMusicPath: "", audioMusicName: "", note: "",
     tasks: [{ id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }],
   }]), [setDays]);
 
@@ -1632,6 +1684,38 @@ function Admin({ days, setDays, onReload }) {
     }
   }, [patchDay, setSt]);
 
+  // выбрали файл аудио С МУЗЫКОЙ: вторая дорожка дня, отдельные ключи статуса (upM)
+  const onPickAudioMusic = useCallback(async (di, file) => {
+    const d = daysRef.current[di];
+    if (!file) return;
+    const ext = extOf(file.name);
+    if (!AUDIO_EXT.includes(ext)) {
+      setSt(d.id, { upM: "error", msgM: "Формат «." + ext + "» не поддержан. Нужен mp3, m4a, wav или ogg.", previewM: null });
+      return;
+    }
+    const mb = file.size / 1024 / 1024;
+    if (mb > MAX_AUDIO_MB) {
+      setSt(d.id, { upM: "error", msgM: "Файл весит " + mb.toFixed(1) + " МБ, это больше лимита " + MAX_AUDIO_MB + " МБ.", previewM: null });
+      return;
+    }
+    setSt(d.id, { upM: "uploading", progressM: 0, msgM: "", previewM: null });
+    try {
+      const path = "day-" + d.id + "/music-" + Date.now() + "-" + slugFile(file.name);
+      await uploadAudioFile(path, file, (p) => setSt(d.id, { upM: "uploading", progressM: p }));
+      const preview = await signedAudioUrl(path);
+      patchDay(di, (x) => ({ ...x, audioMusicPath: path, audioMusicName: file.name }));
+      const cur = daysRef.current[di];
+      const { error } = await sb.from("days").upsert(
+        { day_number: d.id, title: cur.title, lesson: cur.lesson, audio_music_url: path, audio_music_name: file.name },
+        { onConflict: "day_number" }
+      );
+      if (error) throw error;
+      setSt(d.id, { upM: "done", progressM: 100, msgM: file.name, previewM: preview });
+    } catch (e) {
+      setSt(d.id, { upM: "error", msgM: (e && e.message) || "Не удалось загрузить файл.", previewM: null });
+    }
+  }, [patchDay, setSt]);
+
   // сохранить все правки дня в базу: название, текст, ссылку на аудио и задания
   const onSaveDay = useCallback(async (di) => {
     const d = daysRef.current[di];
@@ -1643,6 +1727,8 @@ function Admin({ days, setDays, onReload }) {
         lesson: d.lesson,
         audio_url: d.audioPath || null,
         audio_name: d.audioName || null,
+        audio_music_url: d.audioMusicPath || null,
+        audio_music_name: d.audioMusicName || null,
         duration_min: (Number(d.duration) || 0) / 60,
       }, { onConflict: "day_number" });
       if (de) throw de;
@@ -1708,7 +1794,7 @@ function Admin({ days, setDays, onReload }) {
           <DayCard key={d.id} day={d} di={di} status={stMap[d.id]}
             onTitle={onTitle} onLesson={onLesson} onTaskText={onTaskText}
             onTaskRemove={onTaskRemove} onTaskAdd={onTaskAdd}
-            onPickAudio={onPickAudio} onSaveDay={onSaveDay} />
+            onPickAudio={onPickAudio} onPickAudioMusic={onPickAudioMusic} onSaveDay={onSaveDay} />
         ))}
       </div>
     </div>

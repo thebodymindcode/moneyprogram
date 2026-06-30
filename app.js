@@ -168,6 +168,8 @@ async function loadDaysFromDb() {
     duration: Math.round((Number(d.duration_min) || 0) * 60),
     audioPath: d.audio_url || "",
     audioName: d.audio_name || "",
+    audioMusicPath: d.audio_music_url || "",
+    audioMusicName: d.audio_music_name || "",
     note: noteMap[d.day_number] || "",
     state: ciMap[d.day_number] != null ? Number(ciMap[d.day_number]) : null,
     tasks: (tasksRes.data || []).filter(t => t.day_number === d.day_number).map(t => ({
@@ -1361,6 +1363,10 @@ function Player({
   const [t, setT] = useState(0);
   const [dur, setDur] = useState(day.duration || 0);
   const [speed, setSpeed] = useState(loadSpeed);
+  const [track, setTrack] = useState("voice");
+  const trackRef = useRef("voice");
+  const hasMusic = !!(day.audioPath && day.audioMusicPath);
+  const pathNow = () => trackRef.current === "music" && day.audioMusicPath ? day.audioMusicPath : day.audioPath;
   const applySpeed = v => {
     const s = Math.round(clampSpeed(v) * 100) / 100;
     setSpeed(s);
@@ -1381,11 +1387,21 @@ function Player({
     const my = ++reqId.current;
     resumeAt.current = resume || 0;
     setSrc(undefined);
-    signedAudioUrl(day.audioPath).then(u => {
+    signedAudioUrl(pathNow()).then(u => {
       if (my === reqId.current) setSrc(u);
     }).catch(() => {
       if (my === reqId.current) setSrc("");
     });
+  };
+  const switchTrack = next => {
+    if (next === trackRef.current || !hasMusic) return;
+    const a = audioRef.current;
+    const pos = a ? a.currentTime : 0;
+    shouldResume.current = a ? !a.paused : false;
+    recoverLeft.current = 2;
+    trackRef.current = next;
+    setTrack(next);
+    loadSrc(pos);
   };
   useEffect(() => {
     setPlaying(false);
@@ -1394,13 +1410,15 @@ function Player({
     recoverLeft.current = 2;
     resumeAt.current = 0;
     shouldResume.current = false;
+    trackRef.current = "voice";
+    setTrack("voice");
     if (!day.audioPath) {
       reqId.current++;
       setSrc(null);
       return;
     }
     loadSrc(0);
-  }, [day.id, day.audioPath]);
+  }, [day.id, day.audioPath, day.audioMusicPath]);
   if (src === null || src === "") {
     const failed = src === "";
     return React.createElement("div", {
@@ -1501,7 +1519,24 @@ function Player({
     className: "play-btn",
     onClick: toggle,
     disabled: loading
-  }, playing ? React.createElement(Ico.pause, null) : React.createElement(Ico.play, null))), React.createElement("div", {
+  }, playing ? React.createElement(Ico.pause, null) : React.createElement(Ico.play, null))), hasMusic && React.createElement("div", {
+    className: "track-switch",
+    role: "group",
+    "aria-label": "\u0412\u0435\u0440\u0441\u0438\u044F \u0430\u0443\u0434\u0438\u043E"
+  }, React.createElement("span", {
+    className: "ts-thumb",
+    style: {
+      transform: track === "music" ? "translateX(100%)" : "translateX(0)"
+    }
+  }), React.createElement("button", {
+    type: "button",
+    className: track === "voice" ? "on" : "",
+    onClick: () => switchTrack("voice")
+  }, "\u0411\u0435\u0437 \u043C\u0443\u0437\u044B\u043A\u0438"), React.createElement("button", {
+    type: "button",
+    className: track === "music" ? "on" : "",
+    onClick: () => switchTrack("music")
+  }, "\u0421 \u043C\u0443\u0437\u044B\u043A\u043E\u0439")), React.createElement("div", {
     className: "seek"
   }, React.createElement("div", {
     className: "seek-bar",
@@ -2670,6 +2705,7 @@ const DayCard = memo(function DayCard({
   onTaskRemove,
   onTaskAdd,
   onPickAudio,
+  onPickAudioMusic,
   onSaveDay
 }) {
   const s = status || {};
@@ -2691,7 +2727,7 @@ const DayCard = memo(function DayCard({
     onChange: e => onLesson(di, e.target.value)
   }), React.createElement("div", {
     className: "adm-label"
-  }, "\u0410\u0443\u0434\u0438\u043E \u0443\u0440\u043E\u043A\u0430"), React.createElement("div", {
+  }, "\u0410\u0443\u0434\u0438\u043E \u0431\u0435\u0437 \u043C\u0443\u0437\u044B\u043A\u0438 (\u043E\u0441\u043D\u043E\u0432\u043D\u043E\u0435)"), React.createElement("div", {
     className: "uploader"
   }, React.createElement("label", {
     className: "btn btn-ghost btn-sm",
@@ -2735,6 +2771,53 @@ const DayCard = memo(function DayCard({
   })), s.up === "error" && React.createElement("div", {
     className: "up-line err"
   }, s.msg), React.createElement("div", {
+    className: "adm-label"
+  }, "\u0410\u0443\u0434\u0438\u043E \u0441 \u043C\u0443\u0437\u044B\u043A\u043E\u0439 (\u043F\u043E \u0436\u0435\u043B\u0430\u043D\u0438\u044E)"), React.createElement("div", {
+    className: "adm-hint"
+  }, "\u0412\u0442\u043E\u0440\u0430\u044F \u0432\u0435\u0440\u0441\u0438\u044F \u0442\u043E\u0433\u043E \u0436\u0435 \u0443\u0440\u043E\u043A\u0430 \u0441 \u0444\u043E\u043D\u043E\u0432\u043E\u0439 \u043C\u0443\u0437\u044B\u043A\u043E\u0439. \u0415\u0441\u043B\u0438 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C, \u0443 \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0430 \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0430\u0442\u0435\u043B\u044C \xAB\u0411\u0435\u0437 \u043C\u0443\u0437\u044B\u043A\u0438 / \u0421 \u043C\u0443\u0437\u044B\u043A\u043E\u0439\xBB. \u041F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E \u0438\u0433\u0440\u0430\u0435\u0442 \u0432\u0435\u0440\u0441\u0438\u044F \u0431\u0435\u0437 \u043C\u0443\u0437\u044B\u043A\u0438."), React.createElement("div", {
+    className: "uploader"
+  }, React.createElement("label", {
+    className: "btn btn-ghost btn-sm",
+    style: {
+      cursor: "pointer"
+    }
+  }, React.createElement(Ico.upload, null), " \u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0432\u0435\u0440\u0441\u0438\u044E \u0441 \u043C\u0443\u0437\u044B\u043A\u043E\u0439", React.createElement("input", {
+    type: "file",
+    accept: ".mp3,.m4a,.wav,.ogg,audio/*",
+    style: {
+      display: "none"
+    },
+    onChange: e => {
+      const f = e.target.files[0];
+      e.target.value = "";
+      onPickAudioMusic(di, f);
+    }
+  })), React.createElement("span", {
+    className: "file-name" + (day.audioMusicName ? "" : " empty")
+  }, day.audioMusicName || "файл не выбран")), s.upM === "uploading" && React.createElement("div", {
+    className: "up-status"
+  }, React.createElement("div", {
+    className: "up-bar"
+  }, React.createElement("i", {
+    style: {
+      width: (s.progressM || 0) + "%"
+    }
+  })), React.createElement("div", {
+    className: "up-line muted"
+  }, "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u0442\u0441\u044F\u2026 ", s.progressM || 0, "%")), s.upM === "done" && React.createElement("div", {
+    className: "up-status"
+  }, React.createElement("div", {
+    className: "up-line ok"
+  }, React.createElement("span", {
+    className: "ok-tick"
+  }, "\u2713"), " \u0417\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043E: ", s.msgM), s.previewM && React.createElement("audio", {
+    className: "up-preview",
+    controls: true,
+    preload: "metadata",
+    src: s.previewM
+  })), s.upM === "error" && React.createElement("div", {
+    className: "up-line err"
+  }, s.msgM), React.createElement("div", {
     className: "adm-label"
   }, "\u0417\u0430\u0434\u0430\u043D\u0438\u044F"), day.tasks.map((t, ti) => React.createElement("div", {
     key: t.id,
@@ -2818,6 +2901,8 @@ function Admin({
     duration: 420,
     audioPath: "",
     audioName: "",
+    audioMusicPath: "",
+    audioMusicName: "",
     note: "",
     tasks: [{
       id: "new-" + Date.now(),
@@ -2896,6 +2981,72 @@ function Admin({
       });
     }
   }, [patchDay, setSt]);
+  const onPickAudioMusic = useCallback(async (di, file) => {
+    const d = daysRef.current[di];
+    if (!file) return;
+    const ext = extOf(file.name);
+    if (!AUDIO_EXT.includes(ext)) {
+      setSt(d.id, {
+        upM: "error",
+        msgM: "Формат «." + ext + "» не поддержан. Нужен mp3, m4a, wav или ogg.",
+        previewM: null
+      });
+      return;
+    }
+    const mb = file.size / 1024 / 1024;
+    if (mb > MAX_AUDIO_MB) {
+      setSt(d.id, {
+        upM: "error",
+        msgM: "Файл весит " + mb.toFixed(1) + " МБ, это больше лимита " + MAX_AUDIO_MB + " МБ.",
+        previewM: null
+      });
+      return;
+    }
+    setSt(d.id, {
+      upM: "uploading",
+      progressM: 0,
+      msgM: "",
+      previewM: null
+    });
+    try {
+      const path = "day-" + d.id + "/music-" + Date.now() + "-" + slugFile(file.name);
+      await uploadAudioFile(path, file, p => setSt(d.id, {
+        upM: "uploading",
+        progressM: p
+      }));
+      const preview = await signedAudioUrl(path);
+      patchDay(di, x => ({
+        ...x,
+        audioMusicPath: path,
+        audioMusicName: file.name
+      }));
+      const cur = daysRef.current[di];
+      const {
+        error
+      } = await sb.from("days").upsert({
+        day_number: d.id,
+        title: cur.title,
+        lesson: cur.lesson,
+        audio_music_url: path,
+        audio_music_name: file.name
+      }, {
+        onConflict: "day_number"
+      });
+      if (error) throw error;
+      setSt(d.id, {
+        upM: "done",
+        progressM: 100,
+        msgM: file.name,
+        previewM: preview
+      });
+    } catch (e) {
+      setSt(d.id, {
+        upM: "error",
+        msgM: e && e.message || "Не удалось загрузить файл.",
+        previewM: null
+      });
+    }
+  }, [patchDay, setSt]);
   const onSaveDay = useCallback(async di => {
     const d = daysRef.current[di];
     setSt(d.id, {
@@ -2911,6 +3062,8 @@ function Admin({
         lesson: d.lesson,
         audio_url: d.audioPath || null,
         audio_name: d.audioName || null,
+        audio_music_url: d.audioMusicPath || null,
+        audio_music_name: d.audioMusicName || null,
         duration_min: (Number(d.duration) || 0) / 60
       }, {
         onConflict: "day_number"
@@ -3026,6 +3179,7 @@ function Admin({
     onTaskRemove: onTaskRemove,
     onTaskAdd: onTaskAdd,
     onPickAudio: onPickAudio,
+    onPickAudioMusic: onPickAudioMusic,
     onSaveDay: onSaveDay
   }))));
 }
