@@ -938,6 +938,11 @@ function Auth() {
           }
         });
         if (error) throw error;
+        sb.functions.invoke("welcome-email", {
+          body: {
+            name: name.trim()
+          }
+        }).catch(() => {});
         if (!data.session) {
           setInfo("Аккаунт создан. Если включено подтверждение почты, открой письмо и подтверди, потом войди.");
           switchMode("login");

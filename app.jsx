@@ -361,6 +361,8 @@ function Auth() {
           email: email.trim(), password: pass, options: { data: { name: name.trim() } },
         });
         if (error) throw error;
+        // письмо-уведомление о регистрации (в фоне, интерфейс не задерживаем, ошибку не показываем)
+        sb.functions.invoke("welcome-email", { body: { name: name.trim() } }).catch(() => {});
         // если подтверждение почты выключено, сессия придёт сразу и App покажет приложение
         if (!data.session) {
           setInfo("Аккаунт создан. Если включено подтверждение почты, открой письмо и подтверди, потом войди.");
