@@ -685,8 +685,15 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 /* ---- Кнопка «Выйти» внизу главного экрана (только мобильный; на десктопе выход в сайдбаре) ---- */
 .mobile-logout { display: none; }
 @media (max-width: 899px) {
-  .mobile-logout { display: flex; justify-content: center; margin-top: 30px; }
+  .mobile-logout { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 30px; }
 }
+.ml-ghost { color: var(--steel); }
+/* форма смены пароля (в дашборде и в боковой панели) */
+.change-pass { width: 100%; max-width: 320px; margin: 6px auto 0; display: flex; flex-direction: column; gap: 8px; }
+.sb-foot .change-pass { margin-top: 12px; max-width: none; }
+.change-pass .cp-title { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.change-pass .input { font-size: 14px; }
+.change-pass .cp-actions { display: flex; gap: 8px; }
 .ml-btn {
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
   font-size: 13.5px; font-weight: 600; color: var(--ink-faint);

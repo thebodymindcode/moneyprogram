@@ -504,6 +504,44 @@ function NewPassword({ onDone }) {
   );
 }
 
+/* смена пароля из самой программы: залогиненный человек ставит свой пароль */
+function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);   // {type:"ok"|"err", text}
+  const close = () => { setOpen(false); setMsg(null); setP1(""); setP2(""); };
+  const save = async () => {
+    setMsg(null);
+    if (p1.length < 6) { setMsg({ type: "err", text: "Пароль не короче 6 символов." }); return; }
+    if (p1 !== p2) { setMsg({ type: "err", text: "Пароли не совпадают." }); return; }
+    setBusy(true);
+    try {
+      const { error } = await withTimeout(sb.auth.updateUser({ password: p1 }), 12000, "Смена пароля");
+      if (error) throw error;
+      setMsg({ type: "ok", text: "Готово, пароль изменён. Запишите его." });
+      setP1(""); setP2("");
+    } catch (e) {
+      setMsg({ type: "err", text: "Не получилось: " + ((e && e.message) || "попробуйте ещё раз") });
+    } finally { setBusy(false); }
+  };
+  const onKey = (e) => { if (e.key === "Enter") save(); };
+  if (!open) return <button className="ml-btn ml-ghost" onClick={() => setOpen(true)}><Ico.lock /> Сменить пароль</button>;
+  return (
+    <div className="change-pass">
+      <div className="cp-title">Новый пароль</div>
+      <input className="input" type="password" placeholder="Новый пароль" value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} />
+      <input className="input" type="password" placeholder="Повторите пароль" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} />
+      {msg && <div className={"auth-msg " + msg.type}>{msg.text}</div>}
+      <div className="cp-actions">
+        <button className="btn btn-sm btn-primary" onClick={save} disabled={busy}>{busy ? "Минуту…" : "Сохранить"}</button>
+        <button className="btn btn-sm btn-ghost" onClick={close}>{msg && msg.type === "ok" ? "Закрыть" : "Отмена"}</button>
+      </div>
+    </div>
+  );
+}
+
 /* график сдвига состояния: линия от тревоги к спокойствию по дням, где есть отметка */
 function StateChart({ days }) {
   const pts = days.filter((d) => d.state != null).map((d) => ({ day: d.id, v: d.state }));
@@ -682,6 +720,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
         </div>
       </div>
       <div className="mobile-logout">
+        <ChangePassword />
         <button className="ml-btn" onClick={onLogout}><Ico.out /> Выйти из аккаунта</button>
       </div>
     </div>
@@ -2144,6 +2183,7 @@ function Sidebar({ tab, setTab, onLogout, profile, isAdmin }) {
           <div className="who"><div className="n">{name}</div><div className="e">{email}</div></div>
           <button className="sb-logout" title="Выйти" onClick={onLogout}><Ico.out /></button>
         </div>
+        <ChangePassword />
       </div>
     </aside>
   );

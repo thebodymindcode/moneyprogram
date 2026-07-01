@@ -1141,6 +1141,95 @@ function NewPassword({
     disabled: busy
   }, busy ? "Минуту…" : "Сохранить пароль")))));
 }
+function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const close = () => {
+    setOpen(false);
+    setMsg(null);
+    setP1("");
+    setP2("");
+  };
+  const save = async () => {
+    setMsg(null);
+    if (p1.length < 6) {
+      setMsg({
+        type: "err",
+        text: "Пароль не короче 6 символов."
+      });
+      return;
+    }
+    if (p1 !== p2) {
+      setMsg({
+        type: "err",
+        text: "Пароли не совпадают."
+      });
+      return;
+    }
+    setBusy(true);
+    try {
+      const {
+        error
+      } = await withTimeout(sb.auth.updateUser({
+        password: p1
+      }), 12000, "Смена пароля");
+      if (error) throw error;
+      setMsg({
+        type: "ok",
+        text: "Готово, пароль изменён. Запишите его."
+      });
+      setP1("");
+      setP2("");
+    } catch (e) {
+      setMsg({
+        type: "err",
+        text: "Не получилось: " + (e && e.message || "попробуйте ещё раз")
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const onKey = e => {
+    if (e.key === "Enter") save();
+  };
+  if (!open) return React.createElement("button", {
+    className: "ml-btn ml-ghost",
+    onClick: () => setOpen(true)
+  }, React.createElement(Ico.lock, null), " \u0421\u043C\u0435\u043D\u0438\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C");
+  return React.createElement("div", {
+    className: "change-pass"
+  }, React.createElement("div", {
+    className: "cp-title"
+  }, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
+    className: "input",
+    type: "password",
+    placeholder: "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C",
+    value: p1,
+    onChange: e => setP1(e.target.value),
+    onKeyDown: onKey
+  }), React.createElement("input", {
+    className: "input",
+    type: "password",
+    placeholder: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C",
+    value: p2,
+    onChange: e => setP2(e.target.value),
+    onKeyDown: onKey
+  }), msg && React.createElement("div", {
+    className: "auth-msg " + msg.type
+  }, msg.text), React.createElement("div", {
+    className: "cp-actions"
+  }, React.createElement("button", {
+    className: "btn btn-sm btn-primary",
+    onClick: save,
+    disabled: busy
+  }, busy ? "Минуту…" : "Сохранить"), React.createElement("button", {
+    className: "btn btn-sm btn-ghost",
+    onClick: close
+  }, msg && msg.type === "ok" ? "Закрыть" : "Отмена")));
+}
 function StateChart({
   days
 }) {
@@ -1436,7 +1525,7 @@ function Dashboard({
     }, hidden ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))), React.createElement("div", {
     className: "mobile-logout"
-  }, React.createElement("button", {
+  }, React.createElement(ChangePassword, null), React.createElement("button", {
     className: "ml-btn",
     onClick: onLogout
   }, React.createElement(Ico.out, null), " \u0412\u044B\u0439\u0442\u0438 \u0438\u0437 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430")));
@@ -3699,7 +3788,7 @@ function Sidebar({
     className: "sb-logout",
     title: "\u0412\u044B\u0439\u0442\u0438",
     onClick: onLogout
-  }, React.createElement(Ico.out, null)))));
+  }, React.createElement(Ico.out, null))), React.createElement(ChangePassword, null)));
 }
 function BottomNav({
   tab,
