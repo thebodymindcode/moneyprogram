@@ -148,6 +148,30 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
+// Тихий лог клиентских ошибок в базу (таблица client_errors). Никогда не бросает и не мешает работе.
+// Антифлуд: одно и то же сообщение не чаще раза в 3с.
+const _errSeen = new Map();
+async function logClientError(context, err, extra) {
+  try {
+    if (!window.sb) return;
+    const msg = String((err && (err.message || err.msg)) || err || "").slice(0, 500);
+    const k = context + "|" + msg, now = Date.now();
+    if (_errSeen.get(k) && now - _errSeen.get(k) < 3000) return;
+    _errSeen.set(k, now);
+    await window.sb.from("client_errors").insert({
+      context: String(context || "").slice(0, 120),
+      message: msg,
+      detail: (String(extra || (err && err.stack) || "").slice(0, 1200)) || null,
+      url: (typeof location !== "undefined" ? String(location.href) : "").slice(0, 300),
+      ua: (typeof navigator !== "undefined" ? String(navigator.userAgent) : "").slice(0, 300),
+    });
+  } catch (e) { /* лог не должен ломать приложение */ }
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("error", (e) => { try { logClientError("window.error", (e && (e.error || e.message)), (e && e.filename ? e.filename + ":" + e.lineno : "")); } catch (_) {} });
+  window.addEventListener("unhandledrejection", (e) => { try { logClientError("unhandledrejection", e && e.reason); } catch (_) {} });
+}
+
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;   // пока таблицы checkins нет, к ней не обращаемся (ноль ошибок в консоли)
   const reqs = [
@@ -409,6 +433,7 @@ function Auth() {
       }
     } catch (e) {
       const raw = ((e && e.message) || "").toLowerCase();
+      if (!raw.includes("invalid login") && !raw.includes("already registered") && !raw.includes("already been registered")) logClientError(reg ? "signup" : "login", e);
       if (reg && (raw.includes("already registered") || raw.includes("already been registered"))) {
         // аккаунт уже есть (напр. пароль выдал админ или была регистрация): ведём на вход, подсказываем сброс
         switchMode("login");
@@ -2368,23 +2393,31 @@ function App() {
 
   // ВАЖНО: запрос в supabase-js выполняется только при await/then.
   // Поэтому каждую запись обязательно ждём и проверяем ошибку, а не глотаем её.
-  const persist = async (builder, what) => {
-    try {
-      const { error } = await builder;
-      if (error) throw error;
-      return true;
-    } catch (e) {
-      console.error("Ошибка сохранения (" + what + "):", e);
-      setSaveErr("Не удалось сохранить " + what + ". " + ((e && e.message) || ""));
-      setTimeout(() => setSaveErr(""), 6000);
-      return false;
+  // makeReq: функция, возвращающая свежий запрос (для повтора нужен новый запрос).
+  const persist = async (makeReq, what) => {
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { error } = await withTimeout(makeReq(), 12000, what);
+        if (error) throw error;
+        if (attempt > 0) setSaveErr("");   // получилось после повтора, убираем баннер
+        return true;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < 2) { await sleep(600 * (attempt + 1)); continue; }   // 0.6с, 1.2с
+      }
     }
+    console.error("Ошибка сохранения (" + what + "):", lastErr);
+    logClientError("save:" + what, lastErr);
+    setSaveErr("Не получилось сохранить " + what + ", проверьте интернет. Данные не потеряны, попробуйте ещё раз.");
+    setTimeout(() => setSaveErr(""), 8000);
+    return false;
   };
 
   const saveAnswer = (tid, answer, done) =>
-    persist(sb.from("task_answers").upsert({ user_id: uid, task_id: tid, answer: answer, done: done, updated_at: nowISO() }, { onConflict: "user_id,task_id" }), "ответ");
+    persist(() => sb.from("task_answers").upsert({ user_id: uid, task_id: tid, answer: answer, done: done, updated_at: nowISO() }, { onConflict: "user_id,task_id" }), "ответ");
   const saveProgress = (dayNumber, completed) =>
-    persist(sb.from("progress").upsert({ user_id: uid, day_number: dayNumber, completed: completed, completed_at: completed ? nowISO() : null }, { onConflict: "user_id,day_number" }), "прогресс");
+    persist(() => sb.from("progress").upsert({ user_id: uid, day_number: dayNumber, completed: completed, completed_at: completed ? nowISO() : null }, { onConflict: "user_id,day_number" }), "прогресс");
 
   const onAnswer = (di, tid, v) => setLocalTask(di, tid, { answer: v });
   const onAnswerBlur = (di, tid) => { const t = days[di].tasks.find((x) => x.id === tid); if (t && t.answer && t.answer.trim()) saveAnswer(tid, t.answer, t.done); };
@@ -2402,7 +2435,7 @@ function App() {
   };
   const onNote = (di, v) => {
     setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, note: v })));
-    persist(sb.from("notes").upsert({ user_id: uid, day_number: days[di].id, text: v, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "заметку");
+    persist(() => sb.from("notes").upsert({ user_id: uid, day_number: days[di].id, text: v, updated_at: nowISO() }, { onConflict: "user_id,day_number" }), "заметку");
   };
   const onState = (di, value) => {
     setDays((ds) => ds.map((d, i) => (i !== di ? d : { ...d, state: value })));   // мгновенно в интерфейсе

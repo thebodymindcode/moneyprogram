@@ -165,6 +165,36 @@ function writeDaysCache(uid, days) {
 function withTimeout(promise, ms, label) {
   return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error((label || "Запрос") + ": превышено время ожидания")), ms))]);
 }
+const _errSeen = new Map();
+async function logClientError(context, err, extra) {
+  try {
+    if (!window.sb) return;
+    const msg = String(err && (err.message || err.msg) || err || "").slice(0, 500);
+    const k = context + "|" + msg,
+      now = Date.now();
+    if (_errSeen.get(k) && now - _errSeen.get(k) < 3000) return;
+    _errSeen.set(k, now);
+    await window.sb.from("client_errors").insert({
+      context: String(context || "").slice(0, 120),
+      message: msg,
+      detail: String(extra || err && err.stack || "").slice(0, 1200) || null,
+      url: (typeof location !== "undefined" ? String(location.href) : "").slice(0, 300),
+      ua: (typeof navigator !== "undefined" ? String(navigator.userAgent) : "").slice(0, 300)
+    });
+  } catch (e) {}
+}
+if (typeof window !== "undefined") {
+  window.addEventListener("error", e => {
+    try {
+      logClientError("window.error", e && (e.error || e.message), e && e.filename ? e.filename + ":" + e.lineno : "");
+    } catch (_) {}
+  });
+  window.addEventListener("unhandledrejection", e => {
+    try {
+      logClientError("unhandledrejection", e && e.reason);
+    } catch (_) {}
+  });
+}
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;
   const reqs = [sb.from("days").select("*").order("day_number", {
@@ -1044,6 +1074,7 @@ function Auth() {
       }
     } catch (e) {
       const raw = (e && e.message || "").toLowerCase();
+      if (!raw.includes("invalid login") && !raw.includes("already registered") && !raw.includes("already been registered")) logClientError(reg ? "signup" : "login", e);
       if (reg && (raw.includes("already registered") || raw.includes("already been registered"))) {
         switchMode("login");
         setInfo("На эту почту аккаунт уже есть. Войдите своим паролем или нажмите «Забыли пароль?».");
@@ -4077,21 +4108,31 @@ function App() {
       ...patch
     } : t)
   }));
-  const persist = async (builder, what) => {
-    try {
-      const {
-        error
-      } = await builder;
-      if (error) throw error;
-      return true;
-    } catch (e) {
-      console.error("Ошибка сохранения (" + what + "):", e);
-      setSaveErr("Не удалось сохранить " + what + ". " + (e && e.message || ""));
-      setTimeout(() => setSaveErr(""), 6000);
-      return false;
+  const persist = async (makeReq, what) => {
+    let lastErr;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const {
+          error
+        } = await withTimeout(makeReq(), 12000, what);
+        if (error) throw error;
+        if (attempt > 0) setSaveErr("");
+        return true;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < 2) {
+          await sleep(600 * (attempt + 1));
+          continue;
+        }
+      }
     }
+    console.error("Ошибка сохранения (" + what + "):", lastErr);
+    logClientError("save:" + what, lastErr);
+    setSaveErr("Не получилось сохранить " + what + ", проверьте интернет. Данные не потеряны, попробуйте ещё раз.");
+    setTimeout(() => setSaveErr(""), 8000);
+    return false;
   };
-  const saveAnswer = (tid, answer, done) => persist(sb.from("task_answers").upsert({
+  const saveAnswer = (tid, answer, done) => persist(() => sb.from("task_answers").upsert({
     user_id: uid,
     task_id: tid,
     answer: answer,
@@ -4100,7 +4141,7 @@ function App() {
   }, {
     onConflict: "user_id,task_id"
   }), "ответ");
-  const saveProgress = (dayNumber, completed) => persist(sb.from("progress").upsert({
+  const saveProgress = (dayNumber, completed) => persist(() => sb.from("progress").upsert({
     user_id: uid,
     day_number: dayNumber,
     completed: completed,
@@ -4137,7 +4178,7 @@ function App() {
       ...d,
       note: v
     }));
-    persist(sb.from("notes").upsert({
+    persist(() => sb.from("notes").upsert({
       user_id: uid,
       day_number: days[di].id,
       text: v,
