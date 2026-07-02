@@ -355,19 +355,23 @@ function Auth() {
 
   const submit = async () => {
     setErr(""); setInfo("");
-    if (!email.trim() || !pass) { setErr("Впиши почту и пароль."); return; }
+    if (!email.trim() || !pass.trim()) { setErr("Впиши почту и пароль."); return; }
     if (reg && !name.trim()) { setErr("Впиши имя."); return; }
-    if (reg && pass.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
+    // нормализуем: почту в нижний регистр, у пароля срезаем случайные пробелы.
+    // мобильные клавиатуры часто добавляют пробел в конце, из-за этого «неверный пароль» при верном.
+    const em = email.trim().toLowerCase();
+    const pw = pass.trim();
+    if (reg && pw.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
     setBusy(true);
     try {
       if (reg) {
         // проверяем список участников до регистрации, чтобы сразу показать понятное сообщение
         try {
-          const chk = await sb.rpc("is_email_allowed", { p_email: email.trim() });
+          const chk = await sb.rpc("is_email_allowed", { p_email: em });
           if (!chk.error && chk.data === false) { setErr(NOT_ALLOWED_MSG); setBusy(false); return; }
         } catch (e) { /* если проверка недоступна, регистрацию всё равно ограничит триггер в базе */ }
         const { data, error } = await sb.auth.signUp({
-          email: email.trim(), password: pass, options: { data: { name: name.trim() } },
+          email: em, password: pw, options: { data: { name: name.trim() } },
         });
         if (error) throw error;
         // письмо-уведомление о регистрации (в фоне, интерфейс не задерживаем, ошибку не показываем)
@@ -378,11 +382,18 @@ function Auth() {
           switchMode("login");
         }
       } else {
-        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password: pass });
+        const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
         if (error) throw error;
       }
     } catch (e) {
-      setErr(authErrorText(e));
+      const raw = ((e && e.message) || "").toLowerCase();
+      if (reg && (raw.includes("already registered") || raw.includes("already been registered"))) {
+        // аккаунт уже есть (напр. пароль выдал админ или была регистрация): ведём на вход, подсказываем сброс
+        switchMode("login");
+        setInfo("На эту почту аккаунт уже есть. Войдите своим паролем или нажмите «Забыли пароль?».");
+      } else {
+        setErr(authErrorText(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -428,13 +439,13 @@ function Auth() {
           )}
           <div className="field">
             <label>Почта</label>
-            <input className="input" type="email" placeholder="you@mail.com" value={email}
+            <input className="input" type="email" inputMode="email" autoCapitalize="none" autoCorrect="off" autoComplete="email" spellCheck={false} placeholder="you@mail.com" value={email}
               onChange={(e) => setEmail(e.target.value)} onKeyDown={onKey} />
           </div>
           {!recover && (
             <div className="field">
               <label>Пароль</label>
-              <input className="input" type="password" placeholder="••••••••" value={pass}
+              <input className="input" type="password" autoCapitalize="none" autoComplete={reg ? "new-password" : "current-password"} spellCheck={false} placeholder="••••••••" value={pass}
                 onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} />
             </div>
           )}
@@ -470,10 +481,11 @@ function NewPassword({ onDone }) {
   const [ok, setOk] = useState(false);
   const save = async () => {
     setErr("");
-    if (p1.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
-    if (p1 !== p2) { setErr("Пароли не совпадают, впишите одинаковые."); return; }
+    const np = p1.trim();
+    if (np.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
+    if (np !== p2.trim()) { setErr("Пароли не совпадают, впишите одинаковые."); return; }
     setBusy(true);
-    const { error } = await sb.auth.updateUser({ password: p1 });
+    const { error } = await sb.auth.updateUser({ password: np });
     setBusy(false);
     if (error) { setErr(error.message || "Не получилось сменить пароль. Попробуйте ещё раз."); return; }
     setOk(true);
@@ -514,11 +526,12 @@ function ChangePassword() {
   const close = () => { setOpen(false); setMsg(null); setP1(""); setP2(""); };
   const save = async () => {
     setMsg(null);
-    if (p1.length < 6) { setMsg({ type: "err", text: "Пароль не короче 6 символов." }); return; }
-    if (p1 !== p2) { setMsg({ type: "err", text: "Пароли не совпадают." }); return; }
+    const np = p1.trim();
+    if (np.length < 6) { setMsg({ type: "err", text: "Пароль не короче 6 символов." }); return; }
+    if (np !== p2.trim()) { setMsg({ type: "err", text: "Пароли не совпадают." }); return; }
     setBusy(true);
     try {
-      const { error } = await withTimeout(sb.auth.updateUser({ password: p1 }), 12000, "Смена пароля");
+      const { error } = await withTimeout(sb.auth.updateUser({ password: np }), 12000, "Смена пароля");
       if (error) throw error;
       setMsg({ type: "ok", text: "Готово, пароль изменён. Запишите его." });
       setP1(""); setP2("");

@@ -904,7 +904,7 @@ function Auth() {
   const submit = async () => {
     setErr("");
     setInfo("");
-    if (!email.trim() || !pass) {
+    if (!email.trim() || !pass.trim()) {
       setErr("Впиши почту и пароль.");
       return;
     }
@@ -912,7 +912,9 @@ function Auth() {
       setErr("Впиши имя.");
       return;
     }
-    if (reg && pass.length < 6) {
+    const em = email.trim().toLowerCase();
+    const pw = pass.trim();
+    if (reg && pw.length < 6) {
       setErr("Пароль должен быть не короче 6 символов.");
       return;
     }
@@ -921,7 +923,7 @@ function Auth() {
       if (reg) {
         try {
           const chk = await sb.rpc("is_email_allowed", {
-            p_email: email.trim()
+            p_email: em
           });
           if (!chk.error && chk.data === false) {
             setErr(NOT_ALLOWED_MSG);
@@ -933,8 +935,8 @@ function Auth() {
           data,
           error
         } = await sb.auth.signUp({
-          email: email.trim(),
-          password: pass,
+          email: em,
+          password: pw,
           options: {
             data: {
               name: name.trim()
@@ -955,13 +957,19 @@ function Auth() {
         const {
           error
         } = await sb.auth.signInWithPassword({
-          email: email.trim(),
-          password: pass
+          email: em,
+          password: pw
         });
         if (error) throw error;
       }
     } catch (e) {
-      setErr(authErrorText(e));
+      const raw = (e && e.message || "").toLowerCase();
+      if (reg && (raw.includes("already registered") || raw.includes("already been registered"))) {
+        switchMode("login");
+        setInfo("На эту почту аккаунт уже есть. Войдите своим паролем или нажмите «Забыли пароль?».");
+      } else {
+        setErr(authErrorText(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -1023,6 +1031,11 @@ function Auth() {
   }, React.createElement("label", null, "\u041F\u043E\u0447\u0442\u0430"), React.createElement("input", {
     className: "input",
     type: "email",
+    inputMode: "email",
+    autoCapitalize: "none",
+    autoCorrect: "off",
+    autoComplete: "email",
+    spellCheck: false,
     placeholder: "you@mail.com",
     value: email,
     onChange: e => setEmail(e.target.value),
@@ -1032,6 +1045,9 @@ function Auth() {
   }, React.createElement("label", null, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
     className: "input",
     type: "password",
+    autoCapitalize: "none",
+    autoComplete: reg ? "new-password" : "current-password",
+    spellCheck: false,
     placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
     value: pass,
     onChange: e => setPass(e.target.value),
@@ -1076,11 +1092,12 @@ function NewPassword({
   const [ok, setOk] = useState(false);
   const save = async () => {
     setErr("");
-    if (p1.length < 6) {
+    const np = p1.trim();
+    if (np.length < 6) {
       setErr("Пароль должен быть не короче 6 символов.");
       return;
     }
-    if (p1 !== p2) {
+    if (np !== p2.trim()) {
       setErr("Пароли не совпадают, впишите одинаковые.");
       return;
     }
@@ -1088,7 +1105,7 @@ function NewPassword({
     const {
       error
     } = await sb.auth.updateUser({
-      password: p1
+      password: np
     });
     setBusy(false);
     if (error) {
@@ -1155,14 +1172,15 @@ function ChangePassword() {
   };
   const save = async () => {
     setMsg(null);
-    if (p1.length < 6) {
+    const np = p1.trim();
+    if (np.length < 6) {
       setMsg({
         type: "err",
         text: "Пароль не короче 6 символов."
       });
       return;
     }
-    if (p1 !== p2) {
+    if (np !== p2.trim()) {
       setMsg({
         type: "err",
         text: "Пароли не совпадают."
@@ -1174,7 +1192,7 @@ function ChangePassword() {
       const {
         error
       } = await withTimeout(sb.auth.updateUser({
-        password: p1
+        password: np
       }), 12000, "Смена пароля");
       if (error) throw error;
       setMsg({
