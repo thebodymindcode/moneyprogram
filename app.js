@@ -3432,6 +3432,98 @@ const DayCard = memo(function DayCard({
     className: "save-err"
   }, s.saveMsg)));
 });
+function ErrorsSection() {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    setBusy(true);
+    try {
+      const {
+        data
+      } = await sb.from("client_errors").select("created_at,context,message,url").order("created_at", {
+        ascending: false
+      }).limit(50);
+      setRows(data || []);
+    } catch (e) {
+      setRows([]);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const toggle = () => {
+    const n = !open;
+    setOpen(n);
+    if (n && rows === null) load();
+  };
+  return React.createElement("div", {
+    style: {
+      marginTop: 30
+    }
+  }, React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      margin: "26px 0 10px"
+    }
+  }, "\u041E\u0448\u0438\u0431\u043A\u0438"), React.createElement("div", {
+    className: "block-sub muted",
+    style: {
+      marginTop: -6,
+      marginBottom: 12
+    }
+  }, "\u0421\u044E\u0434\u0430 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0441\u0430\u043C\u043E \u043F\u0438\u0448\u0435\u0442 \u0441\u0431\u043E\u0438 \u0443 \u043B\u044E\u0434\u0435\u0439 (\u0441\u0435\u0442\u044C, \u0432\u0445\u043E\u0434, \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0435). \u041F\u0443\u0441\u0442\u043E, \u0437\u043D\u0430\u0447\u0438\u0442 \u0432\u0441\u0451 \u0447\u0438\u0441\u0442\u043E."), React.createElement("div", {
+    className: "adm-actions"
+  }, React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: toggle
+  }, open ? "Скрыть" : "Показать ошибки"), open && React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    onClick: load,
+    disabled: busy
+  }, busy ? "Гружу…" : "Обновить")), open && React.createElement("div", {
+    style: {
+      marginTop: 12,
+      padding: 14,
+      background: "#fff",
+      borderRadius: 14,
+      border: "1px solid #e9ecf1"
+    }
+  }, rows === null ? React.createElement("div", {
+    className: "muted"
+  }, "\u0413\u0440\u0443\u0436\u0443\u2026") : rows.length === 0 ? React.createElement("div", {
+    className: "muted"
+  }, "\u041E\u0448\u0438\u0431\u043E\u043A \u043D\u0435\u0442. \u0427\u0438\u0441\u0442\u043E.") : rows.map((r, i) => React.createElement("div", {
+    key: i,
+    style: {
+      padding: "10px 0",
+      borderTop: i ? "1px solid #eef1f5" : "none",
+      fontSize: 13.5
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 10,
+      justifyContent: "space-between",
+      flexWrap: "wrap"
+    }
+  }, React.createElement("b", null, r.context || "?"), React.createElement("span", {
+    className: "muted",
+    style: {
+      fontSize: 12
+    }
+  }, new Date(r.created_at).toLocaleString("ru-RU"))), React.createElement("div", {
+    style: {
+      marginTop: 2
+    }
+  }, r.message), r.url && React.createElement("div", {
+    className: "muted",
+    style: {
+      marginTop: 2,
+      fontSize: 11.5,
+      wordBreak: "break-all"
+    }
+  }, r.url)))));
+}
 function Admin({
   days,
   setDays,
@@ -3766,7 +3858,7 @@ function Admin({
     onPickAudio: onPickAudio,
     onPickAudioMusic: onPickAudioMusic,
     onSaveDay: onSaveDay
-  }))));
+  }))), React.createElement(ErrorsSection, null));
 }
 const NAV = [{
   k: "dashboard",

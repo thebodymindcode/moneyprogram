@@ -1978,6 +1978,46 @@ const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTa
   );
 });
 
+function ErrorsSection() {
+  const [rows, setRows] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    setBusy(true);
+    try {
+      const { data } = await sb.from("client_errors").select("created_at,context,message,url").order("created_at", { ascending: false }).limit(50);
+      setRows(data || []);
+    } catch (e) { setRows([]); } finally { setBusy(false); }
+  };
+  const toggle = () => { const n = !open; setOpen(n); if (n && rows === null) load(); };
+  return (
+    <div style={{ marginTop: 30 }}>
+      <div className="eyebrow" style={{ margin: "26px 0 10px" }}>Ошибки</div>
+      <div className="block-sub muted" style={{ marginTop: -6, marginBottom: 12 }}>Сюда приложение само пишет сбои у людей (сеть, вход, сохранение). Пусто, значит всё чисто.</div>
+      <div className="adm-actions">
+        <button className="btn btn-ghost btn-sm" onClick={toggle}>{open ? "Скрыть" : "Показать ошибки"}</button>
+        {open && <button className="btn btn-ghost btn-sm" onClick={load} disabled={busy}>{busy ? "Гружу…" : "Обновить"}</button>}
+      </div>
+      {open && (
+        <div style={{ marginTop: 12, padding: 14, background: "#fff", borderRadius: 14, border: "1px solid #e9ecf1" }}>
+          {rows === null ? <div className="muted">Гружу…</div>
+            : rows.length === 0 ? <div className="muted">Ошибок нет. Чисто.</div>
+            : rows.map((r, i) => (
+              <div key={i} style={{ padding: "10px 0", borderTop: i ? "1px solid #eef1f5" : "none", fontSize: 13.5 }}>
+                <div style={{ display: "flex", gap: 10, justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <b>{r.context || "?"}</b>
+                  <span className="muted" style={{ fontSize: 12 }}>{new Date(r.created_at).toLocaleString("ru-RU")}</span>
+                </div>
+                <div style={{ marginTop: 2 }}>{r.message}</div>
+                {r.url && <div className="muted" style={{ marginTop: 2, fontSize: 11.5, wordBreak: "break-all" }}>{r.url}</div>}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Admin({ days, setDays, onReload }) {
   // статус загрузки/сохранения по каждому дню, ключ = id дня
   const [stMap, setStMap] = useState({});
@@ -2151,6 +2191,8 @@ function Admin({ days, setDays, onReload }) {
             onPickAudio={onPickAudio} onPickAudioMusic={onPickAudioMusic} onSaveDay={onSaveDay} />
         ))}
       </div>
+
+      <ErrorsSection />
     </div>
   );
 }
