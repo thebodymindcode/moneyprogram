@@ -40,15 +40,14 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <!-- быстрее устанавливаем соединения с библиотеками и базой, чтобы загрузка не висела на холодном коннекте -->
-  <link rel="preconnect" href="https://unpkg.com" crossorigin />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <!-- заранее устанавливаем соединение с базой, чтобы загрузка не висела на холодном коннекте -->
   <link rel="preconnect" href="https://cxqlkwwciveobhmsdpgq.supabase.co" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=5c8f4487" />
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- библиотеки лежат у нас в vendor/, приложение не зависит от чужих CDN -->
+  <script src="vendor/react-18.production.min.js"></script>
+  <script src="vendor/react-dom-18.production.min.js"></script>
+  <script src="vendor/supabase-js-2.min.js"></script>
 </head>
 <body>
   <script>
