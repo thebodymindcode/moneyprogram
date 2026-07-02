@@ -300,6 +300,8 @@ const Ico = {
   drop: (p) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 3.2s6 5.7 6 9.8a6 6 0 01-12 0c0-4.1 6-9.8 6-9.8z"/></svg>,
   chart: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 21h18"/><rect x="5" y="11" width="3.2" height="7" rx="1"/><rect x="10.4" y="6.5" width="3.2" height="11.5" rx="1"/><rect x="15.8" y="13.5" width="3.2" height="4.5" rx="1"/></svg>,
   info: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/></svg>,
+  eye: (p) => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeoff: (p) => <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 3l18 18"/><path d="M10.6 10.6a3 3 0 004.2 4.2"/><path d="M9.8 5.2A9.6 9.6 0 0112 5c6 0 9.5 6.5 9.5 6.5a17.6 17.6 0 01-3.3 4M6.2 6.2A17.4 17.4 0 002.5 12S6 18.5 12 18.5c.8 0 1.6-.1 2.3-.3"/></svg>,
   // единый набор тонких иконок для раздела «Инструкция» (одна линия, stroke 1.7, 24px)
   compass: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="8.5"/><path d="M14.9 9.1l-1.7 4.1-4.1 1.7 1.7-4.1z"/></svg>,
   login: (p) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M14 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3"/><path d="M10 16l4-4-4-4"/><path d="M14 12H4"/></svg>,
@@ -335,6 +337,25 @@ function Ring({ value, total }) {
         <div className="big">{value}</div>
         <div className="of">из {total}</div>
       </div>
+    </div>
+  );
+}
+
+/* поле пароля с кнопкой-глазком «показать/скрыть» */
+function PasswordField({ value, onChange, onKeyDown, placeholder, autoComplete }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative" }}>
+      <input className="input" type={show ? "text" : "password"}
+        autoCapitalize="none" autoCorrect="off" spellCheck={false}
+        autoComplete={autoComplete || "current-password"}
+        placeholder={placeholder || "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"} value={value}
+        onChange={onChange} onKeyDown={onKeyDown} style={{ paddingRight: 48 }} />
+      <button type="button" tabIndex={-1} onClick={() => setShow((s) => !s)}
+        aria-label={show ? "Скрыть пароль" : "Показать пароль"}
+        style={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)", background: "transparent", border: 0, padding: 8, cursor: "pointer", color: "#9aa3b2", display: "flex", alignItems: "center", lineHeight: 0 }}>
+        {show ? <Ico.eyeoff /> : <Ico.eye />}
+      </button>
     </div>
   );
 }
@@ -445,8 +466,7 @@ function Auth() {
           {!recover && (
             <div className="field">
               <label>Пароль</label>
-              <input className="input" type="password" autoCapitalize="none" autoComplete={reg ? "new-password" : "current-password"} spellCheck={false} placeholder="••••••••" value={pass}
-                onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} />
+              <PasswordField value={pass} onChange={(e) => setPass(e.target.value)} onKeyDown={onKey} autoComplete={reg ? "new-password" : "current-password"} />
             </div>
           )}
           {mode === "login" && <div className="auth-forgot"><b onClick={() => switchMode("recover")}>Забыли пароль?</b></div>}
@@ -502,9 +522,9 @@ function NewPassword({ onDone }) {
           ) : (
             <>
               <div className="field"><label>Новый пароль</label>
-                <input className="input" type="password" placeholder="••••••••" value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} /></div>
+                <PasswordField value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} autoComplete="new-password" /></div>
               <div className="field"><label>Повторите пароль</label>
-                <input className="input" type="password" placeholder="••••••••" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} /></div>
+                <PasswordField value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} autoComplete="new-password" /></div>
               {err && <div className="auth-msg err">{err}</div>}
               <div className="spacer" />
               <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? "Минуту…" : "Сохранить пароль"}</button>
@@ -544,8 +564,8 @@ function ChangePassword() {
   return (
     <div className="change-pass">
       <div className="cp-title">Новый пароль</div>
-      <input className="input" type="password" placeholder="Новый пароль" value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} />
-      <input className="input" type="password" placeholder="Повторите пароль" value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} />
+      <PasswordField value={p1} onChange={(e) => setP1(e.target.value)} onKeyDown={onKey} placeholder="Новый пароль" autoComplete="new-password" />
+      <PasswordField value={p2} onChange={(e) => setP2(e.target.value)} onKeyDown={onKey} placeholder="Повторите пароль" autoComplete="new-password" />
       {msg && <div className={"auth-msg " + msg.type}>{msg.text}</div>}
       <div className="cp-actions">
         <button className="btn btn-sm btn-primary" onClick={save} disabled={busy}>{busy ? "Минуту…" : "Сохранить"}</button>

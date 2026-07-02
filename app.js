@@ -639,6 +639,38 @@ const Ico = {
   }), React.createElement("path", {
     d: "M11 12h1v4h1"
   })),
+  eye: p => React.createElement("svg", _extends({
+    viewBox: "0 0 24 24",
+    width: "20",
+    height: "20",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.9",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), React.createElement("path", {
+    d: "M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+  }), React.createElement("circle", {
+    cx: "12",
+    cy: "12",
+    r: "3"
+  })),
+  eyeoff: p => React.createElement("svg", _extends({
+    viewBox: "0 0 24 24",
+    width: "20",
+    height: "20",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "1.9",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, p), React.createElement("path", {
+    d: "M3 3l18 18"
+  }), React.createElement("path", {
+    d: "M10.6 10.6a3 3 0 004.2 4.2"
+  }), React.createElement("path", {
+    d: "M9.8 5.2A9.6 9.6 0 0112 5c6 0 9.5 6.5 9.5 6.5a17.6 17.6 0 01-3.3 4M6.2 6.2A17.4 17.4 0 002.5 12S6 18.5 12 18.5c.8 0 1.6-.1 2.3-.3"
+  })),
   compass: p => React.createElement("svg", _extends({
     viewBox: "0 0 24 24",
     fill: "none",
@@ -886,6 +918,53 @@ function Ring({
     className: "of"
   }, "\u0438\u0437 ", total)));
 }
+function PasswordField({
+  value,
+  onChange,
+  onKeyDown,
+  placeholder,
+  autoComplete
+}) {
+  const [show, setShow] = useState(false);
+  return React.createElement("div", {
+    style: {
+      position: "relative"
+    }
+  }, React.createElement("input", {
+    className: "input",
+    type: show ? "text" : "password",
+    autoCapitalize: "none",
+    autoCorrect: "off",
+    spellCheck: false,
+    autoComplete: autoComplete || "current-password",
+    placeholder: placeholder || "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    value: value,
+    onChange: onChange,
+    onKeyDown: onKeyDown,
+    style: {
+      paddingRight: 48
+    }
+  }), React.createElement("button", {
+    type: "button",
+    tabIndex: -1,
+    onClick: () => setShow(s => !s),
+    "aria-label": show ? "Скрыть пароль" : "Показать пароль",
+    style: {
+      position: "absolute",
+      top: "50%",
+      right: 8,
+      transform: "translateY(-50%)",
+      background: "transparent",
+      border: 0,
+      padding: 8,
+      cursor: "pointer",
+      color: "#9aa3b2",
+      display: "flex",
+      alignItems: "center",
+      lineHeight: 0
+    }
+  }, show ? React.createElement(Ico.eyeoff, null) : React.createElement(Ico.eye, null)));
+}
 function Auth() {
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
@@ -1042,16 +1121,11 @@ function Auth() {
     onKeyDown: onKey
   })), !recover && React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
-    className: "input",
-    type: "password",
-    autoCapitalize: "none",
-    autoComplete: reg ? "new-password" : "current-password",
-    spellCheck: false,
-    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+  }, React.createElement("label", null, "\u041F\u0430\u0440\u043E\u043B\u044C"), React.createElement(PasswordField, {
     value: pass,
     onChange: e => setPass(e.target.value),
-    onKeyDown: onKey
+    onKeyDown: onKey,
+    autoComplete: reg ? "new-password" : "current-password"
   })), mode === "login" && React.createElement("div", {
     className: "auth-forgot"
   }, React.createElement("b", {
@@ -1132,22 +1206,18 @@ function NewPassword({
     className: "auth-msg info"
   }, "\u041F\u0430\u0440\u043E\u043B\u044C \u0438\u0437\u043C\u0435\u043D\u0451\u043D. \u0412\u0445\u043E\u0434\u0438\u043C\u2026") : React.createElement(React.Fragment, null, React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
-    className: "input",
-    type: "password",
-    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+  }, React.createElement("label", null, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement(PasswordField, {
     value: p1,
     onChange: e => setP1(e.target.value),
-    onKeyDown: onKey
+    onKeyDown: onKey,
+    autoComplete: "new-password"
   })), React.createElement("div", {
     className: "field"
-  }, React.createElement("label", null, "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
-    className: "input",
-    type: "password",
-    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+  }, React.createElement("label", null, "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement(PasswordField, {
     value: p2,
     onChange: e => setP2(e.target.value),
-    onKeyDown: onKey
+    onKeyDown: onKey,
+    autoComplete: "new-password"
   })), err && React.createElement("div", {
     className: "auth-msg err"
   }, err), React.createElement("div", {
@@ -1221,20 +1291,18 @@ function ChangePassword() {
     className: "change-pass"
   }, React.createElement("div", {
     className: "cp-title"
-  }, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement("input", {
-    className: "input",
-    type: "password",
-    placeholder: "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C",
+  }, "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C"), React.createElement(PasswordField, {
     value: p1,
     onChange: e => setP1(e.target.value),
-    onKeyDown: onKey
-  }), React.createElement("input", {
-    className: "input",
-    type: "password",
-    placeholder: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C",
+    onKeyDown: onKey,
+    placeholder: "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C",
+    autoComplete: "new-password"
+  }), React.createElement(PasswordField, {
     value: p2,
     onChange: e => setP2(e.target.value),
-    onKeyDown: onKey
+    onKeyDown: onKey,
+    placeholder: "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C",
+    autoComplete: "new-password"
   }), msg && React.createElement("div", {
     className: "auth-msg " + msg.type
   }, msg.text), React.createElement("div", {
