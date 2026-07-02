@@ -221,6 +221,7 @@ function authErrorText(e) {
   if (m.includes("at least 6") || m.includes("password should be")) return "Пароль должен быть не короче 6 символов.";
   if (m.includes("unable to validate email") || m.includes("invalid email")) return "Проверь, правильно ли введена почта.";
   if (m.includes("rate limit") || m.includes("too many")) return "Слишком много попыток, попробуй чуть позже.";
+  if (m.includes("превышено время") || m.includes("timeout") || m.includes("failed to fetch") || m.includes("networkerror") || m.includes("load failed")) return "Сеть отвечает медленно. Проверьте интернет (без VPN или наоборот) и попробуйте ещё раз.";
   return "Не получилось. Попробуй ещё раз.";
 }
 const isDayDone = d => d.tasks.length > 0 && d.tasks.every(t => t.done);
@@ -1001,9 +1002,9 @@ function Auth() {
     try {
       if (reg) {
         try {
-          const chk = await sb.rpc("is_email_allowed", {
+          const chk = await withTimeout(sb.rpc("is_email_allowed", {
             p_email: em
-          });
+          }), 6000, "Проверка списка");
           if (!chk.error && chk.data === false) {
             setErr(NOT_ALLOWED_MSG);
             setBusy(false);
@@ -1013,7 +1014,7 @@ function Auth() {
         const {
           data,
           error
-        } = await sb.auth.signUp({
+        } = await withTimeout(sb.auth.signUp({
           email: em,
           password: pw,
           options: {
@@ -1021,7 +1022,7 @@ function Auth() {
               name: name.trim()
             }
           }
-        });
+        }), 15000, "Регистрация");
         if (error) throw error;
         sb.functions.invoke("welcome-email", {
           body: {
@@ -1035,10 +1036,10 @@ function Auth() {
       } else {
         const {
           error
-        } = await sb.auth.signInWithPassword({
+        } = await withTimeout(sb.auth.signInWithPassword({
           email: em,
           password: pw
-        });
+        }), 15000, "Вход");
         if (error) throw error;
       }
     } catch (e) {
@@ -1066,11 +1067,11 @@ function Auth() {
       const redirectTo = window.location.origin + window.location.pathname;
       const {
         error
-      } = await sb.auth.resetPasswordForEmail(e, {
+      } = await withTimeout(sb.auth.resetPasswordForEmail(e, {
         redirectTo
-      });
+      }), 15000, "Письмо");
       if (error) throw error;
-      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам». Не пришло за пару минут, напишите в поддержку @TheBodyMindCode_support, откроем доступ вручную.");
     } catch (ex) {
       const m = (ex && ex.message || "").toLowerCase();
       if (m.includes("rate") || m.includes("too many") || ex && ex.status === 429) setErr("Слишком часто. Подождите минуту и попробуйте снова.");else setErr("Не удалось отправить письмо. Проверьте почту и попробуйте ещё раз.");
@@ -1178,9 +1179,9 @@ function NewPassword({
     setBusy(true);
     const {
       error
-    } = await sb.auth.updateUser({
+    } = await withTimeout(sb.auth.updateUser({
       password: np
-    });
+    }), 12000, "Смена пароля");
     setBusy(false);
     if (error) {
       setErr(error.message || "Не получилось сменить пароль. Попробуйте ещё раз.");

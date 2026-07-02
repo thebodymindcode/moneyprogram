@@ -202,6 +202,7 @@ function authErrorText(e) {
   if (m.includes("at least 6") || m.includes("password should be")) return "Пароль должен быть не короче 6 символов.";
   if (m.includes("unable to validate email") || m.includes("invalid email")) return "Проверь, правильно ли введена почта.";
   if (m.includes("rate limit") || m.includes("too many")) return "Слишком много попыток, попробуй чуть позже.";
+  if (m.includes("превышено время") || m.includes("timeout") || m.includes("failed to fetch") || m.includes("networkerror") || m.includes("load failed")) return "Сеть отвечает медленно. Проверьте интернет (без VPN или наоборот) и попробуйте ещё раз.";
   return "Не получилось. Попробуй ещё раз.";
 }
 
@@ -388,12 +389,12 @@ function Auth() {
       if (reg) {
         // проверяем список участников до регистрации, чтобы сразу показать понятное сообщение
         try {
-          const chk = await sb.rpc("is_email_allowed", { p_email: em });
+          const chk = await withTimeout(sb.rpc("is_email_allowed", { p_email: em }), 6000, "Проверка списка");
           if (!chk.error && chk.data === false) { setErr(NOT_ALLOWED_MSG); setBusy(false); return; }
         } catch (e) { /* если проверка недоступна, регистрацию всё равно ограничит триггер в базе */ }
-        const { data, error } = await sb.auth.signUp({
+        const { data, error } = await withTimeout(sb.auth.signUp({
           email: em, password: pw, options: { data: { name: name.trim() } },
-        });
+        }), 15000, "Регистрация");
         if (error) throw error;
         // письмо-уведомление о регистрации (в фоне, интерфейс не задерживаем, ошибку не показываем)
         sb.functions.invoke("welcome-email", { body: { name: name.trim() } }).catch(() => {});
@@ -403,7 +404,7 @@ function Auth() {
           switchMode("login");
         }
       } else {
-        const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
+        const { error } = await withTimeout(sb.auth.signInWithPassword({ email: em, password: pw }), 15000, "Вход");
         if (error) throw error;
       }
     } catch (e) {
@@ -428,9 +429,9 @@ function Auth() {
     setBusy(true);
     try {
       const redirectTo = window.location.origin + window.location.pathname;
-      const { error } = await sb.auth.resetPasswordForEmail(e, { redirectTo });
+      const { error } = await withTimeout(sb.auth.resetPasswordForEmail(e, { redirectTo }), 15000, "Письмо");
       if (error) throw error;
-      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам».");
+      setInfo("Письмо отправлено на " + e + ". Откройте его и задайте новый пароль. Если письма нет, загляните в «Спам». Не пришло за пару минут, напишите в поддержку @TheBodyMindCode_support, откроем доступ вручную.");
     } catch (ex) {
       const m = ((ex && ex.message) || "").toLowerCase();
       if (m.includes("rate") || m.includes("too many") || (ex && ex.status === 429))
@@ -505,7 +506,7 @@ function NewPassword({ onDone }) {
     if (np.length < 6) { setErr("Пароль должен быть не короче 6 символов."); return; }
     if (np !== p2.trim()) { setErr("Пароли не совпадают, впишите одинаковые."); return; }
     setBusy(true);
-    const { error } = await sb.auth.updateUser({ password: np });
+    const { error } = await withTimeout(sb.auth.updateUser({ password: np }), 12000, "Смена пароля");
     setBusy(false);
     if (error) { setErr(error.message || "Не получилось сменить пароль. Попробуйте ещё раз."); return; }
     setOk(true);
