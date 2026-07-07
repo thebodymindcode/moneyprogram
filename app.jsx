@@ -255,19 +255,50 @@ function startInstant() {
   const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
   return Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, (c.OPEN_HOUR || 0) - (c.TZ_OFFSET_HOURS || 0), 0, 0);
 }
-// сколько дней уже открыто (в тестовом режиме все)
+// момент открытия дня N (UTC мс). По умолчанию: START_DATE + (N-1) суток в OPEN_HOUR (5:00 МСК).
+// Можно переопределить в APP_CONFIG.OPEN_TIMES[N] = "ГГГГ-ММ-ДД ЧЧ:ММ" (время по Москве / TZ_OFFSET_HOURS).
+function dayOpenInstant(dayNumber) {
+  const c = cfg();
+  const ot = c.OPEN_TIMES || {};
+  const raw = ot[dayNumber] != null ? ot[dayNumber] : ot[String(dayNumber)];
+  if (raw) {
+    const m = String(raw).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - (c.TZ_OFFSET_HOURS || 0), +m[5], 0);
+  }
+  return startInstant() + (dayNumber - 1) * DAY_MS;
+}
+// сколько дней уже открыто (в тестовом режиме все). Дни открываются по порядку:
+// первый ещё не наступивший день останавливает счёт, чтобы не забегать вперёд.
 function unlockedCountNow(total) {
   if (cfg().TEST_OPEN_ALL) return total;
-  const elapsed = Date.now() - startInstant();
-  if (elapsed < 0) return 0;
-  return Math.max(0, Math.min(total, Math.floor(elapsed / DAY_MS) + 1));
+  const now = Date.now();
+  let count = 0;
+  for (let n = 1; n <= total; n++) {
+    if (now >= dayOpenInstant(n)) count++; else break;
+  }
+  return count;
 }
-// живая русская дата открытия дня: «Откроется 3 июля»
+// живая русская дата открытия дня: «Откроется 3 июля» (+ время, если задано не 5:00)
 const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+function openLocalParts(dayNumber) {
+  const c = cfg();
+  const local = new Date(dayOpenInstant(dayNumber) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
+  return { d: local.getUTCDate(), mo: MONTHS_RU[local.getUTCMonth()], h: local.getUTCHours(), mi: local.getUTCMinutes() };
+}
 function unlockLabel(dayNumber) {
   const c = cfg();
-  const local = new Date(startInstant() + (dayNumber - 1) * DAY_MS + (c.TZ_OFFSET_HOURS || 0) * 3600000);
-  return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
+  const p = openLocalParts(dayNumber);
+  let s = "Откроется " + p.d + " " + p.mo;
+  if (p.h !== (c.OPEN_HOUR || 0) || p.mi !== 0) s += " в " + p.h + ":" + String(p.mi).padStart(2, "0");
+  return s;
+}
+// подпись для АДМИНА (видит только владелец): всегда точное время + дефолт это или задано вручную
+function openLabelAdmin(dayNumber) {
+  const c = cfg();
+  const ot = c.OPEN_TIMES || {};
+  const custom = (ot[dayNumber] != null) || (ot[String(dayNumber)] != null);
+  const p = openLocalParts(dayNumber);
+  return "Откроется " + p.d + " " + p.mo + " в " + p.h + ":" + String(p.mi).padStart(2, "0") + (custom ? " · задано вручную" : " · по умолчанию 5:00");
 }
 // «сегодня» для дашборда: самый свежий открытый по календарю день (на нём фокус и кнопка «Открыть день»)
 function computeCurrentIndex(days, unlockedCount) {
@@ -1904,6 +1935,10 @@ const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTa
       <div className="head">
         <div className="n">{day.id}</div>
         <input className="adm-input" value={day.title} onChange={(e) => onTitle(di, e.target.value)} />
+      </div>
+
+      <div style={{ margin: "2px 0 12px", fontSize: 13, fontWeight: 600, color: "#7a8699", display: "flex", alignItems: "center", gap: 6 }}>
+        <span>🕐</span><span>{openLabelAdmin(day.id)}</span>
       </div>
 
       <div className="adm-label">Текст урока</div>

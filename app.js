@@ -301,17 +301,49 @@ function startInstant() {
   const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
   return Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, (c.OPEN_HOUR || 0) - (c.TZ_OFFSET_HOURS || 0), 0, 0);
 }
+function dayOpenInstant(dayNumber) {
+  const c = cfg();
+  const ot = c.OPEN_TIMES || {};
+  const raw = ot[dayNumber] != null ? ot[dayNumber] : ot[String(dayNumber)];
+  if (raw) {
+    const m = String(raw).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - (c.TZ_OFFSET_HOURS || 0), +m[5], 0);
+  }
+  return startInstant() + (dayNumber - 1) * DAY_MS;
+}
 function unlockedCountNow(total) {
   if (cfg().TEST_OPEN_ALL) return total;
-  const elapsed = Date.now() - startInstant();
-  if (elapsed < 0) return 0;
-  return Math.max(0, Math.min(total, Math.floor(elapsed / DAY_MS) + 1));
+  const now = Date.now();
+  let count = 0;
+  for (let n = 1; n <= total; n++) {
+    if (now >= dayOpenInstant(n)) count++;else break;
+  }
+  return count;
 }
 const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+function openLocalParts(dayNumber) {
+  const c = cfg();
+  const local = new Date(dayOpenInstant(dayNumber) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
+  return {
+    d: local.getUTCDate(),
+    mo: MONTHS_RU[local.getUTCMonth()],
+    h: local.getUTCHours(),
+    mi: local.getUTCMinutes()
+  };
+}
 function unlockLabel(dayNumber) {
   const c = cfg();
-  const local = new Date(startInstant() + (dayNumber - 1) * DAY_MS + (c.TZ_OFFSET_HOURS || 0) * 3600000);
-  return "Откроется " + local.getUTCDate() + " " + MONTHS_RU[local.getUTCMonth()];
+  const p = openLocalParts(dayNumber);
+  let s = "Откроется " + p.d + " " + p.mo;
+  if (p.h !== (c.OPEN_HOUR || 0) || p.mi !== 0) s += " в " + p.h + ":" + String(p.mi).padStart(2, "0");
+  return s;
+}
+function openLabelAdmin(dayNumber) {
+  const c = cfg();
+  const ot = c.OPEN_TIMES || {};
+  const custom = ot[dayNumber] != null || ot[String(dayNumber)] != null;
+  const p = openLocalParts(dayNumber);
+  return "Откроется " + p.d + " " + p.mo + " в " + p.h + ":" + String(p.mi).padStart(2, "0") + (custom ? " · задано вручную" : " · по умолчанию 5:00");
 }
 function computeCurrentIndex(days, unlockedCount) {
   return Math.max(0, Math.min(days.length - 1, unlockedCount - 1));
@@ -3305,6 +3337,16 @@ const DayCard = memo(function DayCard({
     value: day.title,
     onChange: e => onTitle(di, e.target.value)
   })), React.createElement("div", {
+    style: {
+      margin: "2px 0 12px",
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#7a8699",
+      display: "flex",
+      alignItems: "center",
+      gap: 6
+    }
+  }, React.createElement("span", null, "\uD83D\uDD50"), React.createElement("span", null, openLabelAdmin(day.id))), React.createElement("div", {
     className: "adm-label"
   }, "\u0422\u0435\u043A\u0441\u0442 \u0443\u0440\u043E\u043A\u0430"), React.createElement("textarea", {
     className: "adm-input",
