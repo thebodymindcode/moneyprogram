@@ -225,6 +225,7 @@ async function loadDaysFromDb() {
   return (daysRes.data || []).map(d => ({
     id: d.day_number,
     title: d.title,
+    openTime: d.open_time || "",
     lesson: d.lesson || "",
     duration: Math.round((Number(d.duration_min) || 0) * 60),
     audioPath: d.audio_url || "",
@@ -301,29 +302,44 @@ function startInstant() {
   const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
   return Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, (c.OPEN_HOUR || 0) - (c.TZ_OFFSET_HOURS || 0), 0, 0);
 }
-function dayOpenInstant(dayNumber) {
-  const c = cfg();
-  const ot = c.OPEN_TIMES || {};
-  const raw = ot[dayNumber] != null ? ot[dayNumber] : ot[String(dayNumber)];
-  if (raw) {
-    const m = String(raw).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
-    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - (c.TZ_OFFSET_HOURS || 0), +m[5], 0);
-  }
-  return startInstant() + (dayNumber - 1) * DAY_MS;
+function parseHM(s) {
+  const m = String(s == null ? "" : s).trim().match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = +m[1],
+    mi = +m[2];
+  if (h > 23 || mi > 59) return null;
+  return h * 60 + mi;
 }
-function unlockedCountNow(total) {
-  if (cfg().TEST_OPEN_ALL) return total;
+function dayOpenMins(day) {
+  const c = cfg();
+  let mm = parseHM(day.openTime);
+  if (mm == null) {
+    const ot = c.OPEN_TIMES || {};
+    mm = parseHM(ot[day.id] != null ? ot[day.id] : ot[String(day.id)]);
+  }
+  if (mm == null) mm = (c.OPEN_HOUR || 0) * 60;
+  return mm;
+}
+function dayOpenInstant(day) {
+  const c = cfg(),
+    tz = c.TZ_OFFSET_HOURS || 0;
+  const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
+  const midnightMsk = Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, -tz, 0, 0) + (day.id - 1) * DAY_MS;
+  return midnightMsk + dayOpenMins(day) * 60000;
+}
+function unlockedCountNow(days) {
+  if (cfg().TEST_OPEN_ALL) return days.length;
   const now = Date.now();
   let count = 0;
-  for (let n = 1; n <= total; n++) {
-    if (now >= dayOpenInstant(n)) count++;else break;
+  for (let i = 0; i < days.length; i++) {
+    if (now >= dayOpenInstant(days[i])) count++;else break;
   }
   return count;
 }
 const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-function openLocalParts(dayNumber) {
+function openLocalParts(day) {
   const c = cfg();
-  const local = new Date(dayOpenInstant(dayNumber) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
+  const local = new Date(dayOpenInstant(day) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
   return {
     d: local.getUTCDate(),
     mo: MONTHS_RU[local.getUTCMonth()],
@@ -331,18 +347,18 @@ function openLocalParts(dayNumber) {
     mi: local.getUTCMinutes()
   };
 }
-function unlockLabel(dayNumber) {
+function unlockLabel(day) {
   const c = cfg();
-  const p = openLocalParts(dayNumber);
+  const p = openLocalParts(day);
   let s = "Откроется " + p.d + " " + p.mo;
   if (p.h !== (c.OPEN_HOUR || 0) || p.mi !== 0) s += " в " + p.h + ":" + String(p.mi).padStart(2, "0");
   return s;
 }
-function openLabelAdmin(dayNumber) {
-  const c = cfg();
-  const ot = c.OPEN_TIMES || {};
-  const custom = ot[dayNumber] != null || ot[String(dayNumber)] != null;
-  const p = openLocalParts(dayNumber);
+function openLabelAdmin(day) {
+  const c = cfg(),
+    ot = c.OPEN_TIMES || {};
+  const custom = parseHM(day.openTime) != null || parseHM(ot[day.id] != null ? ot[day.id] : ot[String(day.id)]) != null;
+  const p = openLocalParts(day);
   return "Откроется " + p.d + " " + p.mo + " в " + p.h + ":" + String(p.mi).padStart(2, "0") + (custom ? " · задано вручную" : " · по умолчанию 5:00");
 }
 function computeCurrentIndex(days, unlockedCount) {
@@ -367,7 +383,7 @@ const STATUS_LABEL = {
 };
 const dayOpenable = status => status === "done" || status === "today" || status === "open";
 function lockLine(status, d, unlockedCount) {
-  return unlockLabel(d.id);
+  return unlockLabel(d);
 }
 const Ico = {
   check: p => React.createElement("svg", _extends({
@@ -1560,7 +1576,7 @@ function Dashboard({
       fontSize: 12.5,
       marginTop: 12
     }
-  }, todayUnlocked ? React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(today.duration), " \xB7 ", today.tasks.length, " ", taskWord(today.tasks.length)) : unlockLabel(today.id)), todayUnlocked ? React.createElement("button", {
+  }, todayUnlocked ? React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(today.duration), " \xB7 ", today.tasks.length, " ", taskWord(today.tasks.length)) : unlockLabel(today)), todayUnlocked ? React.createElement("button", {
     className: "btn btn-primary",
     onClick: () => onOpenDay(currentIndex)
   }, "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C ", React.createElement(Ico.chev, null)) : React.createElement("button", {
@@ -1672,7 +1688,7 @@ function Dashboard({
       className: "nm"
     }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
-    }, hidden ? unlockLabel(d.id) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
+    }, hidden ? unlockLabel(d) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))), React.createElement("div", {
     className: "mobile-logout"
   }, React.createElement(ChangePassword, null), React.createElement("button", {
@@ -3321,6 +3337,8 @@ const DayCard = memo(function DayCard({
   onTaskText,
   onTaskRemove,
   onTaskAdd,
+  onOpenTime,
+  onSaveOpenTime,
   onPickAudio,
   onPickAudioMusic,
   onSaveDay
@@ -3338,15 +3356,70 @@ const DayCard = memo(function DayCard({
     onChange: e => onTitle(di, e.target.value)
   })), React.createElement("div", {
     style: {
-      margin: "2px 0 12px",
-      fontSize: 13,
-      fontWeight: 600,
-      color: "#7a8699",
+      margin: "2px 0 14px",
+      padding: "10px 12px",
+      background: "#f4f7fb",
+      borderRadius: 12,
+      border: "1px solid #e5eaf1"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: 12.5,
+      fontWeight: 700,
+      color: "#5b6b82",
+      marginBottom: 6
+    }
+  }, "\u0412\u043E \u0441\u043A\u043E\u043B\u044C\u043A\u043E \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C"), React.createElement("div", {
+    style: {
       display: "flex",
       alignItems: "center",
-      gap: 6
+      gap: 8,
+      flexWrap: "wrap"
     }
-  }, React.createElement("span", null, "\uD83D\uDD50"), React.createElement("span", null, openLabelAdmin(day.id))), React.createElement("div", {
+  }, React.createElement("input", {
+    type: "time",
+    value: day.openTime || "",
+    onChange: e => onOpenTime(di, e.target.value),
+    style: {
+      padding: "7px 10px",
+      borderRadius: 9,
+      border: "1px solid #cdd6e2",
+      fontSize: 15,
+      fontWeight: 600
+    }
+  }), React.createElement("button", {
+    className: "btn btn-primary btn-sm",
+    disabled: s.tsave === "saving",
+    onClick: () => onSaveOpenTime(di)
+  }, s.tsave === "saving" ? "Сохраняю…" : "Сохранить время"), day.openTime ? React.createElement("button", {
+    className: "btn btn-ghost btn-sm",
+    title: "\u0412\u0435\u0440\u043D\u0443\u0442\u044C 5:00 \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E",
+    onClick: () => onOpenTime(di, "")
+  }, "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C") : null, s.tsave === "saved" && React.createElement("span", {
+    style: {
+      color: "#1f9d55",
+      fontSize: 13,
+      fontWeight: 700
+    }
+  }, "\u2713 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E"), s.tsave === "error" && React.createElement("span", {
+    style: {
+      color: "#c0392b",
+      fontSize: 12.5
+    }
+  }, s.tmsg || "ошибка")), React.createElement("div", {
+    style: {
+      marginTop: 7,
+      fontSize: 12.5,
+      fontWeight: 600,
+      color: "#7a8699"
+    }
+  }, "\uD83D\uDD50 ", openLabelAdmin(day)), React.createElement("div", {
+    style: {
+      marginTop: 3,
+      fontSize: 11.5,
+      color: "#9aa6b6"
+    }
+  }, "\u041F\u0443\u0441\u0442\u043E = \u043F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E 5:00 \u0443\u0442\u0440\u0430. \u041F\u043E\u0441\u043B\u0435 \xAB\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C\xBB \u0442\u043E\u0436\u0435 \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \xAB\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0432\u0440\u0435\u043C\u044F\xBB. \u042D\u0442\u043E \u0432\u0438\u0434\u0438\u0442\u0435 \u0442\u043E\u043B\u044C\u043A\u043E \u0432\u044B, \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0438 \u0432\u0440\u0435\u043C\u044F \u043D\u0435 \u0432\u0438\u0434\u044F\u0442.")), React.createElement("div", {
     className: "adm-label"
   }, "\u0422\u0435\u043A\u0441\u0442 \u0443\u0440\u043E\u043A\u0430"), React.createElement("textarea", {
     className: "adm-input",
@@ -3593,6 +3666,37 @@ function Admin({
   const onLesson = useCallback((di, v) => patchDay(di, {
     lesson: v
   }), [patchDay]);
+  const onOpenTime = useCallback((di, v) => patchDay(di, {
+    openTime: v
+  }), [patchDay]);
+  const onSaveOpenTime = useCallback(async di => {
+    const d = daysRef.current[di];
+    setSt(d.id, {
+      tsave: "saving",
+      tmsg: ""
+    });
+    try {
+      const {
+        error
+      } = await sb.from("days").update({
+        open_time: d.openTime ? d.openTime : null
+      }).eq("day_number", d.id);
+      if (error) throw error;
+      setSt(d.id, {
+        tsave: "saved"
+      });
+      setTimeout(() => setSt(d.id, {
+        tsave: null
+      }), 2500);
+    } catch (e) {
+      const raw = (e && e.message || "").toLowerCase();
+      const msg = raw.includes("open_time") || raw.includes("column") ? "Один раз выполните SQL из инструкции (поле open_time), потом заработает" : e && e.message || "Ошибка сохранения";
+      setSt(d.id, {
+        tsave: "error",
+        tmsg: msg
+      });
+    }
+  }, [setSt]);
   const onTaskText = useCallback((di, ti, v) => patchDay(di, x => ({
     ...x,
     tasks: x.tasks.map((tt, j) => j === ti ? {
@@ -3778,6 +3882,7 @@ function Admin({
       } = await sb.from("days").upsert({
         day_number: d.id,
         title: d.title,
+        open_time: d.openTime ? d.openTime : null,
         lesson: d.lesson,
         audio_url: d.audioPath || null,
         audio_name: d.audioName || null,
@@ -3897,6 +4002,8 @@ function Admin({
     onTaskText: onTaskText,
     onTaskRemove: onTaskRemove,
     onTaskAdd: onTaskAdd,
+    onOpenTime: onOpenTime,
+    onSaveOpenTime: onSaveOpenTime,
     onPickAudio: onPickAudio,
     onPickAudioMusic: onPickAudioMusic,
     onSaveDay: onSaveDay
@@ -4193,7 +4300,7 @@ function App() {
     const t = setTimeout(() => setBootSlow(true), 6000);
     return () => clearTimeout(t);
   }, [session]);
-  const unlockedCount = useMemo(() => days ? unlockedCountNow(days.length) : 0, [days]);
+  const unlockedCount = useMemo(() => days ? unlockedCountNow(days) : 0, [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
     return computeCurrentIndex(days, unlockedCount);
@@ -4364,7 +4471,7 @@ function App() {
       onGoMap: () => goTab("map"),
       nextDay: nextDay,
       nextReady: nextReady,
-      nextLabel: nextDay ? unlockLabel(nextDay.id) : "",
+      nextLabel: nextDay ? unlockLabel(nextDay) : "",
       onOpenNext: () => openDayGuarded(ni),
       onAnswer: (tid, v) => onAnswer(openDay, tid, v),
       onAnswerBlur: tid => onAnswerBlur(openDay, tid),

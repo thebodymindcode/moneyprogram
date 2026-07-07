@@ -195,6 +195,7 @@ async function loadDaysFromDb() {
   return (daysRes.data || []).map((d) => ({
     id: d.day_number,
     title: d.title,
+    openTime: d.open_time || "",                   // «ЧЧ:ММ» по Москве, задаётся владельцем в админке; пусто = дефолт 5:00
     lesson: d.lesson || "",
     duration: Math.round((Number(d.duration_min) || 0) * 60),
     audioPath: d.audio_url || "",                 // путь к файлу в Storage (версия без музыки, основная)
@@ -255,49 +256,57 @@ function startInstant() {
   const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
   return Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, (c.OPEN_HOUR || 0) - (c.TZ_OFFSET_HOURS || 0), 0, 0);
 }
-// момент открытия дня N (UTC мс). По умолчанию: START_DATE + (N-1) суток в OPEN_HOUR (5:00 МСК).
-// Можно переопределить в APP_CONFIG.OPEN_TIMES[N] = "ГГГГ-ММ-ДД ЧЧ:ММ" (время по Москве / TZ_OFFSET_HOURS).
-function dayOpenInstant(dayNumber) {
+// час:минута открытия дня в МИНУТАХ от полуночи по Москве.
+// Приоритет: day.openTime (владелец выставил в админке, из базы) → APP_CONFIG.OPEN_TIMES[id] → дефолт OPEN_HOUR (5:00).
+function parseHM(s) {
+  const m = String(s == null ? "" : s).trim().match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  if (h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+function dayOpenMins(day) {
   const c = cfg();
-  const ot = c.OPEN_TIMES || {};
-  const raw = ot[dayNumber] != null ? ot[dayNumber] : ot[String(dayNumber)];
-  if (raw) {
-    const m = String(raw).trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})/);
-    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - (c.TZ_OFFSET_HOURS || 0), +m[5], 0);
-  }
-  return startInstant() + (dayNumber - 1) * DAY_MS;
+  let mm = parseHM(day.openTime);                     // из базы (кнопка в админке)
+  if (mm == null) { const ot = c.OPEN_TIMES || {}; mm = parseHM(ot[day.id] != null ? ot[day.id] : ot[String(day.id)]); }
+  if (mm == null) mm = (c.OPEN_HOUR || 0) * 60;        // дефолт 5:00
+  return mm;
+}
+// момент открытия дня (UTC мс). Дата = START_DATE + (id-1) суток, время = dayOpenMins по Москве.
+function dayOpenInstant(day) {
+  const c = cfg(), tz = c.TZ_OFFSET_HOURS || 0;
+  const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
+  const midnightMsk = Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, -tz, 0, 0) + (day.id - 1) * DAY_MS;
+  return midnightMsk + dayOpenMins(day) * 60000;
 }
 // сколько дней уже открыто (в тестовом режиме все). Дни открываются по порядку:
 // первый ещё не наступивший день останавливает счёт, чтобы не забегать вперёд.
-function unlockedCountNow(total) {
-  if (cfg().TEST_OPEN_ALL) return total;
+function unlockedCountNow(days) {
+  if (cfg().TEST_OPEN_ALL) return days.length;
   const now = Date.now();
   let count = 0;
-  for (let n = 1; n <= total; n++) {
-    if (now >= dayOpenInstant(n)) count++; else break;
-  }
+  for (let i = 0; i < days.length; i++) { if (now >= dayOpenInstant(days[i])) count++; else break; }
   return count;
 }
 // живая русская дата открытия дня: «Откроется 3 июля» (+ время, если задано не 5:00)
 const MONTHS_RU = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-function openLocalParts(dayNumber) {
+function openLocalParts(day) {
   const c = cfg();
-  const local = new Date(dayOpenInstant(dayNumber) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
+  const local = new Date(dayOpenInstant(day) + (c.TZ_OFFSET_HOURS || 0) * 3600000);
   return { d: local.getUTCDate(), mo: MONTHS_RU[local.getUTCMonth()], h: local.getUTCHours(), mi: local.getUTCMinutes() };
 }
-function unlockLabel(dayNumber) {
+function unlockLabel(day) {
   const c = cfg();
-  const p = openLocalParts(dayNumber);
+  const p = openLocalParts(day);
   let s = "Откроется " + p.d + " " + p.mo;
   if (p.h !== (c.OPEN_HOUR || 0) || p.mi !== 0) s += " в " + p.h + ":" + String(p.mi).padStart(2, "0");
   return s;
 }
-// подпись для АДМИНА (видит только владелец): всегда точное время + дефолт это или задано вручную
-function openLabelAdmin(dayNumber) {
-  const c = cfg();
-  const ot = c.OPEN_TIMES || {};
-  const custom = (ot[dayNumber] != null) || (ot[String(dayNumber)] != null);
-  const p = openLocalParts(dayNumber);
+// подпись для АДМИНА (видит только владелец): всегда точное время + дефолт это или задано
+function openLabelAdmin(day) {
+  const c = cfg(), ot = c.OPEN_TIMES || {};
+  const custom = parseHM(day.openTime) != null || parseHM(ot[day.id] != null ? ot[day.id] : ot[String(day.id)]) != null;
+  const p = openLocalParts(day);
   return "Откроется " + p.d + " " + p.mo + " в " + p.h + ":" + String(p.mi).padStart(2, "0") + (custom ? " · задано вручную" : " · по умолчанию 5:00");
 }
 // «сегодня» для дашборда: самый свежий открытый по календарю день (на нём фокус и кнопка «Открыть день»)
@@ -329,7 +338,7 @@ const dayOpenable = (status) => status === "done" || status === "today" || statu
 // подпись под закрытым днём: до старта по календарю показываем дату, иначе по порядку прохождения
 // подпись под закрытым днём: всегда показываем его дату открытия
 function lockLine(status, d, unlockedCount) {
-  return unlockLabel(d.id);
+  return unlockLabel(d);
 }
 
 /* ========================= icons ========================= */
@@ -736,7 +745,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
             {todayUnlocked
               ? <>🎧 {durLabel(today.duration)} · {today.tasks.length} {taskWord(today.tasks.length)}</>
-              : unlockLabel(today.id)}
+              : unlockLabel(today)}
           </div>
           {todayUnlocked
             ? <button className="btn btn-primary" onClick={() => onOpenDay(currentIndex)}>Открыть день <Ico.chev /></button>
@@ -802,7 +811,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
                 <div key={d.id} className={"card mini " + st} onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .9 }}>
                   <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={19} height={19} />}</div>
                   <div className="nm">{hidden ? "День " + d.id : d.title}</div>
-                  <div className="du">{hidden ? unlockLabel(d.id) : <>🎧 {durLabel(d.duration)}</>}</div>
+                  <div className="du">{hidden ? unlockLabel(d) : <>🎧 {durLabel(d.duration)}</>}</div>
                 </div>
               );
             })}
@@ -1928,7 +1937,7 @@ function StatsSection({ totalDays }) {
 // Карточка одного дня вынесена и обёрнута в memo: при правке одного дня
 // перерисовывается только его карточка, а не все 17 сразу (раньше из-за этого
 // админка подлагивала при наборе текста). Все обработчики приходят стабильными.
-const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTaskText, onTaskRemove, onTaskAdd, onPickAudio, onPickAudioMusic, onSaveDay }) {
+const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTaskText, onTaskRemove, onTaskAdd, onOpenTime, onSaveOpenTime, onPickAudio, onPickAudioMusic, onSaveDay }) {
   const s = status || {};
   return (
     <div className="card adm-day">
@@ -1937,8 +1946,20 @@ const DayCard = memo(function DayCard({ day, di, status, onTitle, onLesson, onTa
         <input className="adm-input" value={day.title} onChange={(e) => onTitle(di, e.target.value)} />
       </div>
 
-      <div style={{ margin: "2px 0 12px", fontSize: 13, fontWeight: 600, color: "#7a8699", display: "flex", alignItems: "center", gap: 6 }}>
-        <span>🕐</span><span>{openLabelAdmin(day.id)}</span>
+      <div style={{ margin: "2px 0 14px", padding: "10px 12px", background: "#f4f7fb", borderRadius: 12, border: "1px solid #e5eaf1" }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: "#5b6b82", marginBottom: 6 }}>Во сколько открыть день</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <input type="time" value={day.openTime || ""} onChange={(e) => onOpenTime(di, e.target.value)}
+            style={{ padding: "7px 10px", borderRadius: 9, border: "1px solid #cdd6e2", fontSize: 15, fontWeight: 600 }} />
+          <button className="btn btn-primary btn-sm" disabled={s.tsave === "saving"} onClick={() => onSaveOpenTime(di)}>
+            {s.tsave === "saving" ? "Сохраняю…" : "Сохранить время"}
+          </button>
+          {day.openTime ? <button className="btn btn-ghost btn-sm" title="Вернуть 5:00 по умолчанию" onClick={() => onOpenTime(di, "")}>Сбросить</button> : null}
+          {s.tsave === "saved" && <span style={{ color: "#1f9d55", fontSize: 13, fontWeight: 700 }}>✓ сохранено</span>}
+          {s.tsave === "error" && <span style={{ color: "#c0392b", fontSize: 12.5 }}>{s.tmsg || "ошибка"}</span>}
+        </div>
+        <div style={{ marginTop: 7, fontSize: 12.5, fontWeight: 600, color: "#7a8699" }}>🕐 {openLabelAdmin(day)}</div>
+        <div style={{ marginTop: 3, fontSize: 11.5, color: "#9aa6b6" }}>Пусто = по умолчанию 5:00 утра. После «Сбросить» тоже нажмите «Сохранить время». Это видите только вы, участники время не видят.</div>
       </div>
 
       <div className="adm-label">Текст урока</div>
@@ -2069,6 +2090,24 @@ function Admin({ days, setDays, onReload }) {
 
   const onTitle = useCallback((di, v) => patchDay(di, { title: v }), [patchDay]);
   const onLesson = useCallback((di, v) => patchDay(di, { lesson: v }), [patchDay]);
+  // время открытия дня: правим в состоянии и сохраняем отдельной кнопкой прямо в базу (open_time)
+  const onOpenTime = useCallback((di, v) => patchDay(di, { openTime: v }), [patchDay]);
+  const onSaveOpenTime = useCallback(async (di) => {
+    const d = daysRef.current[di];
+    setSt(d.id, { tsave: "saving", tmsg: "" });
+    try {
+      const { error } = await sb.from("days").update({ open_time: d.openTime ? d.openTime : null }).eq("day_number", d.id);
+      if (error) throw error;
+      setSt(d.id, { tsave: "saved" });
+      setTimeout(() => setSt(d.id, { tsave: null }), 2500);
+    } catch (e) {
+      const raw = ((e && e.message) || "").toLowerCase();
+      const msg = raw.includes("open_time") || raw.includes("column")
+        ? "Один раз выполните SQL из инструкции (поле open_time), потом заработает"
+        : ((e && e.message) || "Ошибка сохранения");
+      setSt(d.id, { tsave: "error", tmsg: msg });
+    }
+  }, [setSt]);
   const onTaskText = useCallback((di, ti, v) => patchDay(di, (x) => ({ ...x, tasks: x.tasks.map((tt, j) => (j === ti ? { ...tt, text: v } : tt)) })), [patchDay]);
   const onTaskRemove = useCallback((di, ti) => patchDay(di, (x) => ({ ...x, tasks: x.tasks.filter((_, j) => j !== ti) })), [patchDay]);
   const onTaskAdd = useCallback((di) => patchDay(di, (x) => ({ ...x, tasks: [...x.tasks, { id: "new-" + Date.now(), text: "Новое задание", done: false, answer: "" }] })), [patchDay]);
@@ -2153,6 +2192,7 @@ function Admin({ days, setDays, onReload }) {
       const { error: de } = await sb.from("days").upsert({
         day_number: d.id,
         title: d.title,
+        open_time: d.openTime ? d.openTime : null,
         lesson: d.lesson,
         audio_url: d.audioPath || null,
         audio_name: d.audioName || null,
@@ -2222,7 +2262,7 @@ function Admin({ days, setDays, onReload }) {
         {days.map((d, di) => (
           <DayCard key={d.id} day={d} di={di} status={stMap[d.id]}
             onTitle={onTitle} onLesson={onLesson} onTaskText={onTaskText}
-            onTaskRemove={onTaskRemove} onTaskAdd={onTaskAdd}
+            onTaskRemove={onTaskRemove} onTaskAdd={onTaskAdd} onOpenTime={onOpenTime} onSaveOpenTime={onSaveOpenTime}
             onPickAudio={onPickAudio} onPickAudioMusic={onPickAudioMusic} onSaveDay={onSaveDay} />
         ))}
       </div>
@@ -2435,7 +2475,7 @@ function App() {
     return () => clearTimeout(t);
   }, [session]);
 
-  const unlockedCount = useMemo(() => (days ? unlockedCountNow(days.length) : 0), [days]);
+  const unlockedCount = useMemo(() => (days ? unlockedCountNow(days) : 0), [days]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
     return computeCurrentIndex(days, unlockedCount);
@@ -2537,7 +2577,7 @@ function App() {
     const nextReady = !!nextDay && (isAdmin || dayOpenable(dayStatus(nextDay, ni, unlockedCount, currentIndex)));
     content = <DayScreen day={days[openDay]} dayIndex={openDay} total={days.length} onBack={() => setOpenDay(null)}
       onGoMap={() => goTab("map")}
-      nextDay={nextDay} nextReady={nextReady} nextLabel={nextDay ? unlockLabel(nextDay.id) : ""}
+      nextDay={nextDay} nextReady={nextReady} nextLabel={nextDay ? unlockLabel(nextDay) : ""}
       onOpenNext={() => openDayGuarded(ni)}
       onAnswer={(tid, v) => onAnswer(openDay, tid, v)}
       onAnswerBlur={(tid) => onAnswerBlur(openDay, tid)}
