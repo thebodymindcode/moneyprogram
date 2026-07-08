@@ -2354,14 +2354,7 @@ function DayScreen({
     },
     onClick: handleSaveAll,
     disabled: savingAll
-  }, savingAll ? "Сохраняю…" : savedAll ? "✓ Сохранено" : "Сохранить ответы"), React.createElement("div", {
-    className: "faint",
-    style: {
-      fontSize: 12.5,
-      textAlign: "center",
-      marginTop: 8
-    }
-  }, "\u041E\u0442\u0432\u0435\u0442\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442\u0441\u044F \u0441\u0430\u043C\u0438, \u043F\u043E\u043A\u0430 \u043F\u0438\u0448\u0435\u0448\u044C. \u041A\u043D\u043E\u043F\u043A\u0430 \u0432\u044B\u0448\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442 \u0432\u0441\u0451 \u043D\u0430\u0432\u0435\u0440\u043D\u044F\u043A\u0430."), allDone ? React.createElement("div", {
+  }, savingAll ? "Сохраняю…" : savedAll ? "✓ Сохранено" : "Сохранить ответы"), allDone ? React.createElement("div", {
     className: "card day-done-card" + (showDone ? " pop" : "")
   }, React.createElement("div", {
     className: "dd-check"

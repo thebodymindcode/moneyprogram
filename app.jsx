@@ -1272,9 +1272,6 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
       <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSaveAll} disabled={savingAll}>
         {savingAll ? "Сохраняю…" : (savedAll ? "✓ Сохранено" : "Сохранить ответы")}
       </button>
-      <div className="faint" style={{ fontSize: 12.5, textAlign: "center", marginTop: 8 }}>
-        Ответы сохраняются сами, пока пишешь. Кнопка выше сохранит всё наверняка.
-      </div>
 
       {allDone
         ? <div className={"card day-done-card" + (showDone ? " pop" : "")}>
