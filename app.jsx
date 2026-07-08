@@ -759,7 +759,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
           <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>
             {todayUnlocked
               ? <>🎧 {durLabel(today.duration)} · {today.tasks.length} {taskWord(today.tasks.length)}</>
-              : unlockLabel(today)}
+              : "Скоро"}
           </div>
           {todayUnlocked
             ? <button className="btn btn-primary" onClick={() => onOpenDay(currentIndex)}>Открыть день <Ico.chev /></button>
@@ -825,7 +825,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
                 <div key={d.id} className={"card mini " + st} onClick={() => clickable && onOpenDay(di)} style={{ opacity: clickable ? 1 : .9 }}>
                   <div className="badge" style={bg}>{st === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={19} height={19} />}</div>
                   <div className="nm">{hidden ? "День " + d.id : d.title}</div>
-                  <div className="du">{hidden ? unlockLabel(d) : <>🎧 {durLabel(d.duration)}</>}</div>
+                  <div className="du">{hidden ? "Скоро" : <>🎧 {durLabel(d.duration)}</>}</div>
                 </div>
               );
             })}
@@ -863,7 +863,6 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay, isAdmin }) {
               <div className="body">
                 <div className="t">{hidden ? "День " + d.id : "День " + d.id + ": " + d.title}</div>
                 {showMeta && <div className="s">🎧 {durLabel(d.duration)} · {d.tasks.length} {taskWord(d.tasks.length)}</div>}
-                {!clickable && <div className="lockhint"><Ico.lock /> {lockLine(status, d, unlockedCount)}</div>}
               </div>
               <span className={"tag " + status}>{STATUS_LABEL[status]}</span>
             </div>
@@ -1267,7 +1266,7 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
               </>
             ) : (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день {String(nextLabel || "откроется позже").toLowerCase()}.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день пока закрыт.</div>
                 <div className="spacer" /><div className="spacer" />
                 <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
               </>

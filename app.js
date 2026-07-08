@@ -1587,7 +1587,7 @@ function Dashboard({
       fontSize: 12.5,
       marginTop: 12
     }
-  }, todayUnlocked ? React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(today.duration), " \xB7 ", today.tasks.length, " ", taskWord(today.tasks.length)) : unlockLabel(today)), todayUnlocked ? React.createElement("button", {
+  }, todayUnlocked ? React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(today.duration), " \xB7 ", today.tasks.length, " ", taskWord(today.tasks.length)) : "Скоро"), todayUnlocked ? React.createElement("button", {
     className: "btn btn-primary",
     onClick: () => onOpenDay(currentIndex)
   }, "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C ", React.createElement(Ico.chev, null)) : React.createElement("button", {
@@ -1699,7 +1699,7 @@ function Dashboard({
       className: "nm"
     }, hidden ? "День " + d.id : d.title), React.createElement("div", {
       className: "du"
-    }, hidden ? unlockLabel(d) : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
+    }, hidden ? "Скоро" : React.createElement(React.Fragment, null, "\uD83C\uDFA7 ", durLabel(d.duration))));
   })))), React.createElement("div", {
     className: "mobile-logout"
   }, React.createElement(ChangePassword, null), React.createElement("button", {
@@ -1744,9 +1744,7 @@ function DayMap({
       className: "t"
     }, hidden ? "День " + d.id : "День " + d.id + ": " + d.title), showMeta && React.createElement("div", {
       className: "s"
-    }, "\uD83C\uDFA7 ", durLabel(d.duration), " \xB7 ", d.tasks.length, " ", taskWord(d.tasks.length)), !clickable && React.createElement("div", {
-      className: "lockhint"
-    }, React.createElement(Ico.lock, null), " ", lockLine(status, d, unlockedCount))), React.createElement("span", {
+    }, "\uD83C\uDFA7 ", durLabel(d.duration), " \xB7 ", d.tasks.length, " ", taskWord(d.tasks.length))), React.createElement("span", {
       className: "tag " + status
     }, STATUS_LABEL[status]));
   })));
@@ -2360,7 +2358,7 @@ function DayScreen({
       marginTop: 4,
       lineHeight: 1.5
     }
-  }, "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C ", String(nextLabel || "откроется позже").toLowerCase(), "."), React.createElement("div", {
+  }, "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C \u043F\u043E\u043A\u0430 \u0437\u0430\u043A\u0440\u044B\u0442."), React.createElement("div", {
     className: "spacer"
   }), React.createElement("div", {
     className: "spacer"
