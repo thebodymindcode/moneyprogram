@@ -1287,7 +1287,7 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день уже открыт.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={openNext}>Открыть день {day.id + 1} <Ico.chev /></button>
+                <button className="btn btn-go" onClick={openNext}>Открыть день {day.id + 1} <Ico.chev /></button>
                 <button className="btn btn-soft" style={{ marginTop: 10 }} onClick={goMap}>На карту дней</button>
               </>
             ) : (
@@ -1299,7 +1299,7 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
             )}
           </div>
         : <>
-            <button className="btn btn-primary" onClick={goBack}>Сохранить и вернуться</button>
+            <button className="btn btn-soft" onClick={goBack}>Сохранить и вернуться</button>
             <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался.</div>
           </>}
     </div>

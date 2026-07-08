@@ -300,6 +300,13 @@ button { font-family: inherit; }
   box-shadow: 0 3px 10px rgba(28,38,52,.07), inset 0 1px 0 rgba(255,255,255,.75);
 }
 .btn-soft:hover { filter: brightness(1.02); }
+/* кнопка «дальше»: зелёная, в тон карточке пройденного дня, явно отличается от тёмной «Сохранить» */
+.btn-go {
+  color: #fff;
+  background: linear-gradient(180deg, #3bb089 0%, var(--good) 58%, #248a67 100%);
+  box-shadow: 0 9px 22px rgba(31,120,90,.28), inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(0,0,0,.12);
+}
+.btn-go:hover { filter: brightness(1.05); }
 .btn-sm { width: auto; padding: 10px 15px; font-size: 13.5px; border-radius: 12px; }
 
 /* ============================================================

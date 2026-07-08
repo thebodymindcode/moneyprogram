@@ -2390,7 +2390,7 @@ function DayScreen({
   }), React.createElement("div", {
     className: "spacer"
   }), React.createElement("button", {
-    className: "btn btn-primary",
+    className: "btn btn-go",
     onClick: openNext
   }, "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C ", day.id + 1, " ", React.createElement(Ico.chev, null)), React.createElement("button", {
     className: "btn btn-soft",
@@ -2413,7 +2413,7 @@ function DayScreen({
     className: "btn btn-soft",
     onClick: goMap
   }, "\u041D\u0430 \u043A\u0430\u0440\u0442\u0443 \u0434\u043D\u0435\u0439"))) : React.createElement(React.Fragment, null, React.createElement("button", {
-    className: "btn btn-primary",
+    className: "btn btn-soft",
     onClick: goBack
   }, "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0438 \u0432\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F"), React.createElement("div", {
     className: "encourage"
