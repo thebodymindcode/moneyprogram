@@ -1284,20 +1284,20 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Это последний день. Вы прошли весь протокол.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={goMap}>На карту дней</button>
+                <button className="btn btn-soft" onClick={goMap}>На карту дней</button>
               </>
             ) : nextReady ? (
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день уже открыт.</div>
                 <div className="spacer" /><div className="spacer" />
                 <button className="btn btn-primary" onClick={openNext}>Открыть день {day.id + 1} <Ico.chev /></button>
-                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={goMap}>На карту дней</button>
+                <button className="btn btn-soft" style={{ marginTop: 10 }} onClick={goMap}>На карту дней</button>
               </>
             ) : (
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день пока закрыт.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={goMap}>На карту дней</button>
+                <button className="btn btn-soft" onClick={goMap}>На карту дней</button>
               </>
             )}
           </div>

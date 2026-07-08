@@ -292,6 +292,14 @@ button { font-family: inherit; }
   box-shadow: var(--shadow), var(--bevel);
 }
 .btn-ghost:hover { filter: brightness(1.01); }
+/* вторичная кнопка: мягкая серебристо-серая, спокойная, под тёмной главной кнопкой */
+.btn-soft {
+  color: var(--steel);
+  background: linear-gradient(180deg, #f1f4f9 0%, #e1e7ef 100%);
+  border: 1px solid rgba(28,38,52,.09);
+  box-shadow: 0 3px 10px rgba(28,38,52,.07), inset 0 1px 0 rgba(255,255,255,.75);
+}
+.btn-soft:hover { filter: brightness(1.02); }
 .btn-sm { width: auto; padding: 10px 15px; font-size: 13.5px; border-radius: 12px; }
 
 /* ============================================================
