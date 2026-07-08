@@ -1209,20 +1209,16 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
   // надёжное сохранение: заметка + все ответы дня. Зовём кнопкой «Сохранить» и при любом переходе.
   const noteRef = useRef(null);
   const [savedAll, setSavedAll] = useState(false);
-  const [savingAll, setSavingAll] = useState(false);
-  const flushAll = async () => {
+  // сохранение НЕ блокирует интерфейс: ответы уже в памяти и кеше, запись в базу идёт в фоне (с повторами),
+  // переход выполняется мгновенно. Если запись не удастся, покажется баннер ошибки, данные не теряются.
+  const flushAll = () => {
     if (noteRef.current) onNote(noteRef.current.value);
-    if (onSaveAll) await onSaveAll();
+    if (onSaveAll) Promise.resolve(onSaveAll()).catch(() => {});
   };
-  const handleSaveAll = async () => {
-    setSavingAll(true);
-    await flushAll();
-    setSavingAll(false);
-    setSavedAll(true); setTimeout(() => setSavedAll(false), 2200);
-  };
-  const goBack = async () => { await flushAll(); onBack(); };
-  const goMap = async () => { await flushAll(); onGoMap(); };
-  const openNext = async () => { await flushAll(); onOpenNext(); };
+  const handleSaveAll = () => { flushAll(); setSavedAll(true); setTimeout(() => setSavedAll(false), 2200); };
+  const goBack = () => { flushAll(); onBack(); };
+  const goMap = () => { flushAll(); onGoMap(); };
+  const openNext = () => { flushAll(); onOpenNext(); };
 
   return (
     <div className="page day-col">
@@ -1269,8 +1265,8 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
         <StateSlider key={day.id} value={day.state} onChange={onState} />
       </div>
 
-      <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSaveAll} disabled={savingAll}>
-        {savingAll ? "Сохраняю…" : (savedAll ? "✓ Сохранено" : "Сохранить ответы")}
+      <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSaveAll}>
+        {savedAll ? "✓ Сохранено" : "Сохранить ответы"}
       </button>
 
       {allDone

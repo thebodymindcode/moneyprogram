@@ -2245,28 +2245,25 @@ function DayScreen({
   };
   const noteRef = useRef(null);
   const [savedAll, setSavedAll] = useState(false);
-  const [savingAll, setSavingAll] = useState(false);
-  const flushAll = async () => {
+  const flushAll = () => {
     if (noteRef.current) onNote(noteRef.current.value);
-    if (onSaveAll) await onSaveAll();
+    if (onSaveAll) Promise.resolve(onSaveAll()).catch(() => {});
   };
-  const handleSaveAll = async () => {
-    setSavingAll(true);
-    await flushAll();
-    setSavingAll(false);
+  const handleSaveAll = () => {
+    flushAll();
     setSavedAll(true);
     setTimeout(() => setSavedAll(false), 2200);
   };
-  const goBack = async () => {
-    await flushAll();
+  const goBack = () => {
+    flushAll();
     onBack();
   };
-  const goMap = async () => {
-    await flushAll();
+  const goMap = () => {
+    flushAll();
     onGoMap();
   };
-  const openNext = async () => {
-    await flushAll();
+  const openNext = () => {
+    flushAll();
     onOpenNext();
   };
   return React.createElement("div", {
@@ -2352,9 +2349,8 @@ function DayScreen({
     style: {
       width: "100%"
     },
-    onClick: handleSaveAll,
-    disabled: savingAll
-  }, savingAll ? "Сохраняю…" : savedAll ? "✓ Сохранено" : "Сохранить ответы"), allDone ? React.createElement("div", {
+    onClick: handleSaveAll
+  }, savedAll ? "✓ Сохранено" : "Сохранить ответы"), allDone ? React.createElement("div", {
     className: "card day-done-card" + (showDone ? " pop" : "")
   }, React.createElement("div", {
     className: "dd-check"
