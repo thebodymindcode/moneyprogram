@@ -17,5 +17,5 @@ window.APP_CONFIG = {
   // Аудио на GitHub (бесплатный трафик) вместо Supabase. Указываем, какие дни уже перенесены.
   // День перенесён → его аудио отдаётся с GitHub; не в списке → как раньше, с Supabase (подписанная ссылка).
   AUDIO_CDN_BASE: "https://thebodymindcode.github.io/moneyprogram/audio",
-  AUDIO_CDN_DAYS: [1, 2, 3, 4, 5, 6, 7],
+  AUDIO_CDN_DAYS: [1, 2, 3, 4, 5, 6, 7, 8],
 };
