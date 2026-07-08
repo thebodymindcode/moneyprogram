@@ -2118,6 +2118,12 @@ function TaskItem({
   onEdit
 }) {
   const filled = task.answer && task.answer.trim().length > 0;
+  const saveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+  const scheduleSave = () => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => onAnswerBlur(task.id), 900);
+  };
   return React.createElement("div", {
     className: "qtask" + (task.done ? " done" : "") + (just ? " just-checked" : "")
   }, React.createElement("div", {
@@ -2143,8 +2149,14 @@ function TaskItem({
     className: "q-input",
     placeholder: "\u0412\u043F\u0438\u0448\u0438 \u0441\u0432\u043E\u0439 \u043E\u0442\u0432\u0435\u0442",
     value: task.answer,
-    onChange: e => onAnswer(task.id, e.target.value),
-    onBlur: () => onAnswerBlur(task.id)
+    onChange: e => {
+      onAnswer(task.id, e.target.value);
+      scheduleSave();
+    },
+    onBlur: () => {
+      clearTimeout(saveTimer.current);
+      onAnswerBlur(task.id);
+    }
   }), React.createElement("button", {
     className: "btn btn-primary btn-sm q-confirm",
     disabled: !filled,
@@ -2203,6 +2215,7 @@ function DayScreen({
   nextReady,
   nextLabel,
   onOpenNext,
+  onSaveAll,
   onAnswer,
   onAnswerBlur,
   onConfirm,
@@ -2230,11 +2243,37 @@ function DayScreen({
     setFlash(true);
     setTimeout(() => setFlash(false), 1400);
   };
+  const noteRef = useRef(null);
+  const [savedAll, setSavedAll] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const flushAll = async () => {
+    if (noteRef.current) onNote(noteRef.current.value);
+    if (onSaveAll) await onSaveAll();
+  };
+  const handleSaveAll = async () => {
+    setSavingAll(true);
+    await flushAll();
+    setSavingAll(false);
+    setSavedAll(true);
+    setTimeout(() => setSavedAll(false), 2200);
+  };
+  const goBack = async () => {
+    await flushAll();
+    onBack();
+  };
+  const goMap = async () => {
+    await flushAll();
+    onGoMap();
+  };
+  const openNext = async () => {
+    await flushAll();
+    onOpenNext();
+  };
   return React.createElement("div", {
     className: "page day-col"
   }, React.createElement("button", {
     className: "back",
-    onClick: onBack
+    onClick: goBack
   }, React.createElement(Ico.back, null), " \u041D\u0430\u0437\u0430\u0434 \u043A \u043A\u0430\u0440\u0442\u0435"), React.createElement("div", {
     className: "day-head"
   }, React.createElement("div", {
@@ -2284,6 +2323,7 @@ function DayScreen({
   }, "\u0417\u0430\u043C\u0435\u0442\u043A\u0430 \u0434\u043D\u044F"), React.createElement("div", {
     className: "note-hint"
   }, "\u0417\u0434\u0435\u0441\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u0442\u0435\u0431\u044F. \u0417\u0430\u043F\u0438\u0448\u0438, \u0447\u0442\u043E \u043F\u043E\u0447\u0443\u0432\u0441\u0442\u0432\u043E\u0432\u0430\u043B \u0438 \u0447\u0442\u043E \u043F\u043E\u043D\u044F\u043B \u043D\u0430 \u044D\u0442\u043E\u043C \u0443\u0440\u043E\u043A\u0435. \u0411\u0435\u0437 \u043E\u0446\u0435\u043D\u043E\u043A \u0438 \u0431\u0435\u0437 \xAB\u043F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E \u0438\u043B\u0438 \u043D\u0435\u043F\u0440\u0430\u0432\u0438\u043B\u044C\u043D\u043E\xBB."), React.createElement("textarea", {
+    ref: noteRef,
     className: "note-area",
     placeholder: "\u041F\u0430\u0440\u0430 \u0441\u0442\u0440\u043E\u043A: \u0447\u0442\u043E \u043F\u043E\u0447\u0443\u0432\u0441\u0442\u0432\u043E\u0432\u0430\u043B, \u0447\u0442\u043E \u043F\u043E\u043D\u044F\u043B, \u0447\u0442\u043E \u0437\u0430\u0446\u0435\u043F\u0438\u043B\u043E",
     defaultValue: day.note,
@@ -2307,7 +2347,21 @@ function DayScreen({
     key: day.id,
     value: day.state,
     onChange: onState
-  })), allDone ? React.createElement("div", {
+  })), React.createElement("button", {
+    className: "btn btn-primary",
+    style: {
+      width: "100%"
+    },
+    onClick: handleSaveAll,
+    disabled: savingAll
+  }, savingAll ? "Сохраняю…" : savedAll ? "✓ Сохранено" : "Сохранить ответы"), React.createElement("div", {
+    className: "faint",
+    style: {
+      fontSize: 12.5,
+      textAlign: "center",
+      marginTop: 8
+    }
+  }, "\u041E\u0442\u0432\u0435\u0442\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u044F\u044E\u0442\u0441\u044F \u0441\u0430\u043C\u0438, \u043F\u043E\u043A\u0430 \u043F\u0438\u0448\u0435\u0448\u044C. \u041A\u043D\u043E\u043F\u043A\u0430 \u0432\u044B\u0448\u0435 \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442 \u0432\u0441\u0451 \u043D\u0430\u0432\u0435\u0440\u043D\u044F\u043A\u0430."), allDone ? React.createElement("div", {
     className: "card day-done-card" + (showDone ? " pop" : "")
   }, React.createElement("div", {
     className: "dd-check"
@@ -2330,7 +2384,7 @@ function DayScreen({
     className: "spacer"
   }), React.createElement("button", {
     className: "btn btn-primary",
-    onClick: onGoMap
+    onClick: goMap
   }, "\u041D\u0430 \u043A\u0430\u0440\u0442\u0443 \u0434\u043D\u0435\u0439")) : nextReady ? React.createElement(React.Fragment, null, React.createElement("div", {
     className: "muted",
     style: {
@@ -2344,13 +2398,13 @@ function DayScreen({
     className: "spacer"
   }), React.createElement("button", {
     className: "btn btn-primary",
-    onClick: onOpenNext
+    onClick: openNext
   }, "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0435\u043D\u044C ", day.id + 1, " ", React.createElement(Ico.chev, null)), React.createElement("button", {
     className: "btn btn-ghost",
     style: {
       marginTop: 10
     },
-    onClick: onGoMap
+    onClick: goMap
   }, "\u041D\u0430 \u043A\u0430\u0440\u0442\u0443 \u0434\u043D\u0435\u0439")) : React.createElement(React.Fragment, null, React.createElement("div", {
     className: "muted",
     style: {
@@ -2364,10 +2418,10 @@ function DayScreen({
     className: "spacer"
   }), React.createElement("button", {
     className: "btn btn-primary",
-    onClick: onGoMap
+    onClick: goMap
   }, "\u041D\u0430 \u043A\u0430\u0440\u0442\u0443 \u0434\u043D\u0435\u0439"))) : React.createElement(React.Fragment, null, React.createElement("button", {
     className: "btn btn-primary",
-    onClick: onBack
+    onClick: goBack
   }, "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u0438 \u0432\u0435\u0440\u043D\u0443\u0442\u044C\u0441\u044F"), React.createElement("div", {
     className: "encourage"
   }, "\u041E\u0442\u0432\u0435\u0442\u044C \u043D\u0430 \u0437\u0430\u0434\u0430\u043D\u0438\u044F \u0438 \u043D\u0430\u0436\u043C\u0438 \xAB\u0413\u043E\u0442\u043E\u0432\u043E\xBB, \u0447\u0442\u043E\u0431\u044B \u0434\u0435\u043D\u044C \u0437\u0430\u0441\u0447\u0438\u0442\u0430\u043B\u0441\u044F.")));
@@ -4219,6 +4273,8 @@ function App() {
   const [session, setSession] = useState(undefined);
   const [profile, setProfile] = useState(null);
   const [days, setDays] = useState(null);
+  const daysLive = useRef(null);
+  daysLive.current = days;
   const [loadErr, setLoadErr] = useState("");
   const [saveErr, setSaveErr] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -4403,8 +4459,15 @@ function App() {
     answer: v
   });
   const onAnswerBlur = (di, tid) => {
-    const t = days[di].tasks.find(x => x.id === tid);
+    const d = daysLive.current && daysLive.current[di];
+    const t = d && d.tasks.find(x => x.id === tid);
     if (t && t.answer && t.answer.trim()) saveAnswer(tid, t.answer, t.done);
+  };
+  const flushDayAnswers = async di => {
+    const d = daysLive.current && daysLive.current[di];
+    if (!d) return true;
+    const rs = await Promise.all(d.tasks.filter(t => t.answer && t.answer.trim()).map(t => saveAnswer(t.id, t.answer, t.done)));
+    return rs.every(Boolean);
   };
   const onConfirm = (di, tid) => {
     setLocalTask(di, tid, {
@@ -4482,6 +4545,7 @@ function App() {
       nextReady: nextReady,
       nextLabel: nextDay ? unlockLabel(nextDay) : "",
       onOpenNext: () => openDayGuarded(ni),
+      onSaveAll: () => flushDayAnswers(openDay),
       onAnswer: (tid, v) => onAnswer(openDay, tid, v),
       onAnswerBlur: tid => onAnswerBlur(openDay, tid),
       onConfirm: tid => onConfirm(openDay, tid),

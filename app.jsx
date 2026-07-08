@@ -1139,6 +1139,10 @@ function Player({ day }) {
 /* ========================= Task with answer ========================= */
 function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }) {
   const filled = task.answer && task.answer.trim().length > 0;
+  // автосохранение пока печатаешь: через ~0.9с после последнего нажатия молча сохраняем в базу
+  const saveTimer = useRef(null);
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
+  const scheduleSave = () => { clearTimeout(saveTimer.current); saveTimer.current = setTimeout(() => onAnswerBlur(task.id), 900); };
   return (
     <div className={"qtask" + (task.done ? " done" : "") + (just ? " just-checked" : "")}>
       <div className="q-row">
@@ -1153,8 +1157,8 @@ function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }
       ) : (
         <div className="q-edit-zone">
           <textarea className="q-input" placeholder="Впиши свой ответ" value={task.answer}
-            onChange={(e) => onAnswer(task.id, e.target.value)}
-            onBlur={() => onAnswerBlur(task.id)} />
+            onChange={(e) => { onAnswer(task.id, e.target.value); scheduleSave(); }}
+            onBlur={() => { clearTimeout(saveTimer.current); onAnswerBlur(task.id); }} />
           <button className="btn btn-primary btn-sm q-confirm" disabled={!filled}
             onClick={() => filled && onConfirm(task.id)}>
             <Ico.check /> Готово
@@ -1187,7 +1191,7 @@ function StateSlider({ value, onChange }) {
 }
 
 /* ========================= Day screen ========================= */
-function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, nextLabel, onOpenNext, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
+function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, nextLabel, onOpenNext, onSaveAll, onAnswer, onAnswerBlur, onConfirm, onEdit, onNote, onState }) {
   const [flash, setFlash] = useState(false);
   const [justId, setJustId] = useState(null);
   const [showDone, setShowDone] = useState(false);
@@ -1202,9 +1206,27 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
   };
   const saveNote = (v) => { onNote(v); setFlash(true); setTimeout(() => setFlash(false), 1400); };
 
+  // надёжное сохранение: заметка + все ответы дня. Зовём кнопкой «Сохранить» и при любом переходе.
+  const noteRef = useRef(null);
+  const [savedAll, setSavedAll] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
+  const flushAll = async () => {
+    if (noteRef.current) onNote(noteRef.current.value);
+    if (onSaveAll) await onSaveAll();
+  };
+  const handleSaveAll = async () => {
+    setSavingAll(true);
+    await flushAll();
+    setSavingAll(false);
+    setSavedAll(true); setTimeout(() => setSavedAll(false), 2200);
+  };
+  const goBack = async () => { await flushAll(); onBack(); };
+  const goMap = async () => { await flushAll(); onGoMap(); };
+  const openNext = async () => { await flushAll(); onOpenNext(); };
+
   return (
     <div className="page day-col">
-      <button className="back" onClick={onBack}><Ico.back /> Назад к карте</button>
+      <button className="back" onClick={goBack}><Ico.back /> Назад к карте</button>
       <div className="day-head">
         <div className="eyebrow">День {day.id} из {total}</div>
         <h1>{day.title}</h1>
@@ -1236,7 +1258,7 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
       <div className="card">
         <div className="eyebrow">Заметка дня</div>
         <div className="note-hint">Здесь только для тебя. Запиши, что почувствовал и что понял на этом уроке. Без оценок и без «правильно или неправильно».</div>
-        <textarea className="note-area" placeholder="Пара строк: что почувствовал, что понял, что зацепило" defaultValue={day.note} onBlur={(e) => saveNote(e.target.value)} />
+        <textarea ref={noteRef} className="note-area" placeholder="Пара строк: что почувствовал, что понял, что зацепило" defaultValue={day.note} onBlur={(e) => saveNote(e.target.value)} />
         <div className="spacer" />
         {flash ? <span className="saved-flash">✓ Сохранено</span> : <span className="faint" style={{ fontSize: 12.5 }}>Сохраняется при выходе из поля</span>}
       </div>
@@ -1247,6 +1269,13 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
         <StateSlider key={day.id} value={day.state} onChange={onState} />
       </div>
 
+      <button className="btn btn-primary" style={{ width: "100%" }} onClick={handleSaveAll} disabled={savingAll}>
+        {savingAll ? "Сохраняю…" : (savedAll ? "✓ Сохранено" : "Сохранить ответы")}
+      </button>
+      <div className="faint" style={{ fontSize: 12.5, textAlign: "center", marginTop: 8 }}>
+        Ответы сохраняются сами, пока пишешь. Кнопка выше сохранит всё наверняка.
+      </div>
+
       {allDone
         ? <div className={"card day-done-card" + (showDone ? " pop" : "")}>
             <div className="dd-check"><Ico.check /></div>
@@ -1255,25 +1284,25 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Это последний день. Вы прошли весь протокол.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
+                <button className="btn btn-primary" onClick={goMap}>На карту дней</button>
               </>
             ) : nextReady ? (
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день уже открыт.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={onOpenNext}>Открыть день {day.id + 1} <Ico.chev /></button>
-                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={onGoMap}>На карту дней</button>
+                <button className="btn btn-primary" onClick={openNext}>Открыть день {day.id + 1} <Ico.chev /></button>
+                <button className="btn btn-ghost" style={{ marginTop: 10 }} onClick={goMap}>На карту дней</button>
               </>
             ) : (
               <>
                 <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день пока закрыт.</div>
                 <div className="spacer" /><div className="spacer" />
-                <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
+                <button className="btn btn-primary" onClick={goMap}>На карту дней</button>
               </>
             )}
           </div>
         : <>
-            <button className="btn btn-primary" onClick={onBack}>Сохранить и вернуться</button>
+            <button className="btn btn-primary" onClick={goBack}>Сохранить и вернуться</button>
             <div className="encourage">Ответь на задания и нажми «Готово», чтобы день засчитался.</div>
           </>}
     </div>
@@ -2410,6 +2439,7 @@ function App() {
   const [session, setSession] = useState(undefined); // undefined = ещё проверяем
   const [profile, setProfile] = useState(null);
   const [days, setDays] = useState(null);            // null = ещё не загружены
+  const daysLive = useRef(null); daysLive.current = days;   // всегда актуальные дни для сохранений (без устаревших замыканий)
   const [loadErr, setLoadErr] = useState("");
   const [saveErr, setSaveErr] = useState("");        // ошибка сохранения, показываем человеку
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2550,7 +2580,14 @@ function App() {
     persist(() => sb.from("progress").upsert({ user_id: uid, day_number: dayNumber, completed: completed, completed_at: completed ? nowISO() : null }, { onConflict: "user_id,day_number" }), "прогресс");
 
   const onAnswer = (di, tid, v) => setLocalTask(di, tid, { answer: v });
-  const onAnswerBlur = (di, tid) => { const t = days[di].tasks.find((x) => x.id === tid); if (t && t.answer && t.answer.trim()) saveAnswer(tid, t.answer, t.done); };
+  const onAnswerBlur = (di, tid) => { const d = daysLive.current && daysLive.current[di]; const t = d && d.tasks.find((x) => x.id === tid); if (t && t.answer && t.answer.trim()) saveAnswer(tid, t.answer, t.done); };
+  // сохранить ВСЕ ответы дня из актуального состояния (кнопка «Сохранить» и переходы). Возвращает true, если всё записалось.
+  const flushDayAnswers = async (di) => {
+    const d = daysLive.current && daysLive.current[di];
+    if (!d) return true;
+    const rs = await Promise.all(d.tasks.filter((t) => t.answer && t.answer.trim()).map((t) => saveAnswer(t.id, t.answer, t.done)));
+    return rs.every(Boolean);
+  };
   const onConfirm = (di, tid) => {
     setLocalTask(di, tid, { done: true });
     const day = days[di]; const t = day.tasks.find((x) => x.id === tid);
@@ -2592,6 +2629,7 @@ function App() {
       onGoMap={() => goTab("map")}
       nextDay={nextDay} nextReady={nextReady} nextLabel={nextDay ? unlockLabel(nextDay) : ""}
       onOpenNext={() => openDayGuarded(ni)}
+      onSaveAll={() => flushDayAnswers(openDay)}
       onAnswer={(tid, v) => onAnswer(openDay, tid, v)}
       onAnswerBlur={(tid) => onAnswerBlur(openDay, tid)}
       onConfirm={(tid) => onConfirm(openDay, tid)}
