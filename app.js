@@ -58,6 +58,17 @@ async function signedAudioUrlCached(path, force) {
   });
   return url;
 }
+async function resolveAudioUrl(path, force) {
+  const c = cfg();
+  const base = c.AUDIO_CDN_BASE;
+  const cdnDays = c.AUDIO_CDN_DAYS || [];
+  const m = String(path || "").match(/day-(\d+)\//);
+  const dayN = m ? +m[1] : null;
+  if (base && dayN && cdnDays.indexOf(dayN) !== -1) {
+    return base.replace(/\/+$/, "") + "/" + path;
+  }
+  return signedAudioUrlCached(path, force);
+}
 const _audioBlobCache = new Map();
 const AUDIO_BLOB_MAX = 4;
 function putAudioBlob(path, objectUrl) {
@@ -1815,7 +1826,7 @@ function Player({
       return;
     }
     setSrc(undefined);
-    signedAudioUrlCached(p, force).then(u => {
+    resolveAudioUrl(p, force).then(u => {
       if (my === reqId.current) setSrc(u);
     }).catch(() => {
       if (my === reqId.current) setSrc("");
@@ -1890,7 +1901,7 @@ function Player({
       return;
     }
     loadSrc(0);
-    if (day.audioMusicPath) signedAudioUrlCached(day.audioMusicPath).catch(() => {});
+    if (day.audioMusicPath) resolveAudioUrl(day.audioMusicPath).catch(() => {});
   }, [day.id, day.audioPath, day.audioMusicPath]);
   if (src === null || src === "") {
     const failed = src === "";

@@ -54,6 +54,20 @@ async function signedAudioUrlCached(path, force) {
   return url;
 }
 
+// откуда брать аудио: если день перенесён на GitHub (AUDIO_CDN_DAYS) — прямая бесплатная ссылка;
+// иначе как раньше, подписанная ссылка Supabase. Номер дня берём из пути «day-N/...».
+async function resolveAudioUrl(path, force) {
+  const c = cfg();
+  const base = c.AUDIO_CDN_BASE;
+  const cdnDays = c.AUDIO_CDN_DAYS || [];
+  const m = String(path || "").match(/day-(\d+)\//);
+  const dayN = m ? +m[1] : null;
+  if (base && dayN && cdnDays.indexOf(dayN) !== -1) {
+    return base.replace(/\/+$/, "") + "/" + path;
+  }
+  return signedAudioUrlCached(path, force);
+}
+
 // кеш ПОЛНОСТЬЮ скачанных дорожек (blob): чтобы не качать повторно при переключении/возврате.
 // Держим немного, старое выгружаем, чтобы не копить память на 17 уроков.
 const _audioBlobCache = new Map();   // path -> objectURL
@@ -924,7 +938,7 @@ function Player({ day }) {
     const cachedBlob = _audioBlobCache.get(p);
     if (cachedBlob && !force) { dlFor.current = p; setBuf(1); setSrc(cachedBlob); return; }
     setSrc(undefined);
-    signedAudioUrlCached(p, force)
+    resolveAudioUrl(p, force)
       .then((u) => { if (my === reqId.current) setSrc(u); })
       .catch(() => { if (my === reqId.current) setSrc(""); });
   };
@@ -985,7 +999,7 @@ function Player({ day }) {
     if (!day.audioPath) { reqId.current++; setSrc(null); return; }
     loadSrc(0);
     // заранее греем ссылку второй дорожки, чтобы переключение «С музыкой» было мгновенным
-    if (day.audioMusicPath) signedAudioUrlCached(day.audioMusicPath).catch(() => {});
+    if (day.audioMusicPath) resolveAudioUrl(day.audioMusicPath).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.id, day.audioPath, day.audioMusicPath]);
 

@@ -13,4 +13,9 @@ window.APP_CONFIG = {
   OPEN_TIMES: {
     8: "13:00",   // День 8: страховка на 13:00, пока владелец не задаст своё время в админке
   },
+
+  // Аудио на GitHub (бесплатный трафик) вместо Supabase. Указываем, какие дни уже перенесены.
+  // День перенесён → его аудио отдаётся с GitHub; не в списке → как раньше, с Supabase (подписанная ссылка).
+  AUDIO_CDN_BASE: "https://thebodymindcode.github.io/moneyprogram/audio",
+  AUDIO_CDN_DAYS: [1, 2, 3, 4, 5, 6, 7],
 };
