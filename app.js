@@ -1668,7 +1668,7 @@ function Dashboard({
     const di = days.indexOf(d);
     const st = dayStatus(d, di, unlockedCount, currentIndex, isAdmin);
     const clickable = dayOpenable(st);
-    const hidden = st === "hidden";
+    const hidden = st === "hidden" || st === "next";
     const bg = st === "done" ? {
       background: "var(--good-soft)",
       color: "var(--good)"
@@ -1727,8 +1727,8 @@ function DayMap({
   }, days.map((d, i) => {
     const status = dayStatus(d, i, unlockedCount, currentIndex, isAdmin);
     const clickable = dayOpenable(status);
-    const showMeta = clickable || status === "next";
-    const hidden = status === "hidden";
+    const showMeta = clickable;
+    const hidden = status === "hidden" || status === "next";
     return React.createElement("div", {
       key: d.id,
       className: "node " + status,
@@ -2360,7 +2360,7 @@ function DayScreen({
       marginTop: 4,
       lineHeight: 1.5
     }
-  }, "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C \xAB", nextDay.title, "\xBB ", String(nextLabel || "откроется позже").toLowerCase(), " \u0432 5:00."), React.createElement("div", {
+  }, "\u0421\u043B\u0435\u0434\u0443\u044E\u0449\u0438\u0439 \u0434\u0435\u043D\u044C ", String(nextLabel || "откроется позже").toLowerCase(), "."), React.createElement("div", {
     className: "spacer"
   }), React.createElement("div", {
     className: "spacer"

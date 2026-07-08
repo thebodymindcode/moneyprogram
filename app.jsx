@@ -816,7 +816,7 @@ function Dashboard({ days, currentIndex, unlockedCount, onOpenDay, onGoDiary, us
               const di = days.indexOf(d);
               const st = dayStatus(d, di, unlockedCount, currentIndex, isAdmin);
               const clickable = dayOpenable(st);
-              const hidden = st === "hidden";
+              const hidden = st === "hidden" || st === "next";   // название следующего (ещё закрытого) дня скрыто от участников
               const bg = st === "done" ? { background: "var(--good-soft)", color: "var(--good)" }
                 : st === "today" ? { background: "#e7ebf1", color: "var(--steel)" }
                 : (st === "next" || st === "open") ? { background: "#eef1f5", color: "var(--steel-2)" }
@@ -855,8 +855,8 @@ function DayMap({ days, currentIndex, unlockedCount, onOpenDay, isAdmin }) {
         {days.map((d, i) => {
           const status = dayStatus(d, i, unlockedCount, currentIndex, isAdmin);
           const clickable = dayOpenable(status);
-          const showMeta = clickable || status === "next";   // минуты и задания видны до следующего дня включительно
-          const hidden = status === "hidden";
+          const showMeta = clickable;   // минуты и задания видны только у открытых дней
+          const hidden = status === "hidden" || status === "next";   // название следующего дня скрыто от участников
           return (
             <div key={d.id} className={"node " + status} onClick={() => clickable && onOpenDay(i)}>
               <div className="dot">{status === "done" ? <Ico.check /> : clickable ? d.id : <Ico.lock width={23} height={23} />}</div>
@@ -1267,7 +1267,7 @@ function DayScreen({ day, dayIndex, total, onBack, onGoMap, nextDay, nextReady, 
               </>
             ) : (
               <>
-                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день «{nextDay.title}» {String(nextLabel || "откроется позже").toLowerCase()} в 5:00.</div>
+                <div className="muted" style={{ fontSize: 13.5, marginTop: 4, lineHeight: 1.5 }}>Следующий день {String(nextLabel || "откроется позже").toLowerCase()}.</div>
                 <div className="spacer" /><div className="spacer" />
                 <button className="btn btn-primary" onClick={onGoMap}>На карту дней</button>
               </>
