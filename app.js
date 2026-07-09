@@ -331,12 +331,29 @@ function dayOpenMins(day) {
   if (mm == null) mm = (c.OPEN_HOUR || 0) * 60;
   return mm;
 }
-function dayOpenInstant(day) {
+function offDates() {
+  return cfg().OFF_DATES || [];
+}
+function ymd(dt) {
+  return dt.getUTCFullYear() + "-" + String(dt.getUTCMonth() + 1).padStart(2, "0") + "-" + String(dt.getUTCDate()).padStart(2, "0");
+}
+function openDateMidnight(dayNumber) {
   const c = cfg(),
     tz = c.TZ_OFFSET_HOURS || 0;
+  const off = offDates();
   const p = String(c.START_DATE || "2026-07-01").split("-").map(Number);
-  const midnightMsk = Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, -tz, 0, 0) + (day.id - 1) * DAY_MS;
-  return midnightMsk + dayOpenMins(day) * 60000;
+  let cur = Date.UTC(p[0], (p[1] || 1) - 1, p[2] || 1, -tz, 0, 0);
+  let programDay = 0;
+  for (let guard = 0; guard < 4000; guard++) {
+    const dloc = new Date(cur + tz * 3600000);
+    if (off.indexOf(ymd(dloc)) === -1) programDay++;
+    if (programDay >= dayNumber) return cur;
+    cur += DAY_MS;
+  }
+  return cur;
+}
+function dayOpenInstant(day) {
+  return openDateMidnight(day.id) + dayOpenMins(day) * 60000;
 }
 function unlockedCountNow(days) {
   if (cfg().TEST_OPEN_ALL) return days.length;
