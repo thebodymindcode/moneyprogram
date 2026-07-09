@@ -186,6 +186,15 @@ if (typeof window !== "undefined") {
   window.addEventListener("unhandledrejection", (e) => { try { logClientError("unhandledrejection", e && e.reason); } catch (_) {} });
 }
 
+// выходные дни из базы (таблица off_dates). Нет таблицы или ошибка → пусто, работают только кодовые (config).
+async function loadOffDates() {
+  try {
+    const { data, error } = await sb.from("off_dates").select("date");
+    if (error) return [];
+    return (data || []).map((r) => r.date).filter(Boolean);
+  } catch (e) { return []; }
+}
+
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;   // пока таблицы checkins нет, к ней не обращаемся (ноль ошибок в консоли)
   const reqs = [
@@ -289,6 +298,14 @@ function dayOpenMins(day) {
 // выходные даты (МСК), в которые НОВЫЙ день НЕ открывается: расписание их пропускает и всё едет дальше.
 // Формат APP_CONFIG.OFF_DATES = ["ГГГГ-ММ-ДД", ...].
 function offDates() { return cfg().OFF_DATES || []; }
+// выходные, заданные в коде (appConfig.js), запоминаем один раз, чтобы не потерять при слиянии с базой
+const CONFIG_OFF = (function () { try { const a = (window.APP_CONFIG && window.APP_CONFIG.OFF_DATES) || []; return Array.isArray(a) ? a.slice() : []; } catch (e) { return []; } })();
+// применить выходные из базы: объединяем с кодовыми и кладём в APP_CONFIG.OFF_DATES (движок читает оттуда)
+function applyOffDates(dbList) {
+  const merged = Array.from(new Set([].concat(CONFIG_OFF, dbList || [])));
+  if (window.APP_CONFIG) window.APP_CONFIG.OFF_DATES = merged;
+  return merged;
+}
 function ymd(dt) { return dt.getUTCFullYear() + "-" + String(dt.getUTCMonth() + 1).padStart(2, "0") + "-" + String(dt.getUTCDate()).padStart(2, "0"); }
 // полночь (МСК) даты открытия дня N, как UTC мс. Считаем «рабочие» дни от START_DATE, пропуская выходные.
 function openDateMidnight(dayNumber) {
@@ -2125,7 +2142,43 @@ function ErrorsSection() {
   );
 }
 
-function Admin({ days, setDays, onReload }) {
+// раздел «Выходные дни» в админке: владелец сам выбирает даты, в которые урок не открывается
+function OffDaysSection({ offList, onAddOff, onRemoveOff }) {
+  const [date, setDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+  const add = async () => {
+    if (!date) return;
+    setBusy(true);
+    const r = await onAddOff(date);
+    setBusy(false);
+    if (r) { setDate(""); setOk(true); setTimeout(() => setOk(false), 2000); }
+  };
+  const fmt = (d) => { const p = String(d).split("-"); return p.length === 3 ? ((+p[2]) + " " + MONTHS_RU[(+p[1]) - 1] + " " + p[0]) : d; };
+  const list = (offList || []).slice().sort();
+  return (
+    <div>
+      <div className="eyebrow" style={{ margin: "26px 0 10px" }}>Выходные дни</div>
+      <div className="block-sub muted" style={{ marginTop: -6, marginBottom: 12 }}>Дата, в которую новый урок не открывается. Расписание само сдвигается на день вперёд. Видите только вы, участники этого не видят.</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: "9px 11px", borderRadius: 10, border: "1px solid #cdd6e2", fontSize: 15, fontWeight: 600 }} />
+        <button className="btn btn-primary btn-sm" disabled={busy || !date} onClick={add}>{busy ? "Сохраняю…" : "Добавить выходной"}</button>
+        {ok && <span style={{ color: "#1f9d55", fontWeight: 700, fontSize: 13 }}>✓ добавлено</span>}
+      </div>
+      <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {list.length === 0 && <span className="faint" style={{ fontSize: 13 }}>Выходных пока нет</span>}
+        {list.map((d) => (
+          <span key={d} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "#eef2f7", border: "1px solid #e0e6ee", borderRadius: 999, padding: "7px 8px 7px 13px", fontSize: 13.5, fontWeight: 600, color: "var(--steel)" }}>
+            {fmt(d)}
+            <button onClick={() => onRemoveOff(d)} title="Убрать" style={{ border: "none", background: "#dbe2ec", color: "var(--ink-soft)", width: 22, height: 22, borderRadius: 999, cursor: "pointer", fontWeight: 800, lineHeight: 1 }}>×</button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Admin({ days, setDays, onReload, offList, onAddOff, onRemoveOff }) {
   // статус загрузки/сохранения по каждому дню, ключ = id дня
   const [stMap, setStMap] = useState({});
   // ссылка на актуальные дни для асинхронных обработчиков (без пересоздания колбэков)
@@ -2302,6 +2355,8 @@ function Admin({ days, setDays, onReload }) {
 
       <AccessSection />
 
+      <OffDaysSection offList={offList} onAddOff={onAddOff} onRemoveOff={onRemoveOff} />
+
       <div className="eyebrow" style={{ margin: "26px 0 14px" }}>Дни и уроки</div>
       <div className="block-sub muted" style={{ marginTop: -8, marginBottom: 14 }}>Меняй названия, тексты уроков, аудио и задания. Загрузи файл, потом нажми «Сохранить день», и правки уйдут в базу, останутся навсегда и покажутся участникам.</div>
       <div className="adm-actions">
@@ -2449,6 +2504,7 @@ function App() {
   const [profile, setProfile] = useState(null);
   const [days, setDays] = useState(null);            // null = ещё не загружены
   const daysLive = useRef(null); daysLive.current = days;   // всегда актуальные дни для сохранений (без устаревших замыканий)
+  const [offList, setOffList] = useState([]);              // выходные даты из базы (управляются в админке)
   const [loadErr, setLoadErr] = useState("");
   const [saveErr, setSaveErr] = useState("");        // ошибка сохранения, показываем человеку
   const [isAdmin, setIsAdmin] = useState(false);
@@ -2486,6 +2542,7 @@ function App() {
       setDays(d);
       setLoadErr("");
       setLoadSlow(false);
+      loadOffDates().then((list) => { applyOffDates(list); setOffList(list); });   // выходные из базы (фоном, не блокируем курс)
     } catch (e) {
       if (attempt < 2) { return reload(attempt + 1); }     // ещё две попытки, вдруг сеть моргнула
       setDays((cur) => (cur && cur.length ? cur : cur));    // если был кеш, оставляем рабочий UI как есть
@@ -2527,7 +2584,7 @@ function App() {
     return () => clearTimeout(t);
   }, [session]);
 
-  const unlockedCount = useMemo(() => (days ? unlockedCountNow(days) : 0), [days]);
+  const unlockedCount = useMemo(() => { applyOffDates(offList); return days ? unlockedCountNow(days) : 0; }, [days, offList]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
     return computeCurrentIndex(days, unlockedCount);
@@ -2629,6 +2686,32 @@ function App() {
     if (isAdmin || dayOpenable(dayStatus(days[i], i, unlockedCount, currentIndex))) setOpenDay(i);
   };
 
+  // выходные дни: добавить/убрать (пишем в базу off_dates, обновляем расписание сразу)
+  const addOffDate = async (date) => {
+    if (!date) return false;
+    try {
+      const { error } = await sb.from("off_dates").upsert({ date: date }, { onConflict: "date" });
+      if (error) throw error;
+    } catch (e) {
+      const raw = ((e && e.message) || "").toLowerCase();
+      setSaveErr(raw.includes("off_dates") || raw.includes("relation") || raw.includes("does not exist")
+        ? "Один раз выполните SQL из инструкции (таблица off_dates), потом заработает"
+        : "Не удалось сохранить выходной, проверьте интернет");
+      setTimeout(() => setSaveErr(""), 8000);
+      return false;
+    }
+    const nl = Array.from(new Set([].concat(offList, [date]))); applyOffDates(nl); setOffList(nl); return true;
+  };
+  const removeOffDate = async (date) => {
+    try {
+      const { error } = await sb.from("off_dates").delete().eq("date", date);
+      if (error) throw error;
+    } catch (e) {
+      setSaveErr("Не удалось убрать выходной, проверьте интернет"); setTimeout(() => setSaveErr(""), 8000); return false;
+    }
+    const nl = offList.filter((d) => d !== date); applyOffDates(nl); setOffList(nl); return true;
+  };
+
   let content;
   if (openDay !== null) {
     const ni = openDay + 1;
@@ -2655,7 +2738,7 @@ function App() {
   } else if (tab === "stats" && isAdmin) {
     content = <StatsSection totalDays={days.length} />;
   } else if (tab === "admin" && isAdmin) {
-    content = <Admin days={days} setDays={setDays} onReload={reload} />;
+    content = <Admin days={days} setDays={setDays} onReload={reload} offList={offList} onAddOff={addOffDate} onRemoveOff={removeOffDate} />;
   } else {
     content = <Dashboard days={days} currentIndex={currentIndex} unlockedCount={unlockedCount} onOpenDay={openDayGuarded} onGoDiary={() => goTab("diary")} userName={(profile && profile.name && profile.name.trim()) || ""} isAdmin={isAdmin} onLogout={logout} />;
   }

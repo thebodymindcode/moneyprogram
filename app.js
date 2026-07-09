@@ -206,6 +206,18 @@ if (typeof window !== "undefined") {
     } catch (_) {}
   });
 }
+async function loadOffDates() {
+  try {
+    const {
+      data,
+      error
+    } = await sb.from("off_dates").select("date");
+    if (error) return [];
+    return (data || []).map(r => r.date).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
 async function loadDaysFromDb() {
   const wantCheckins = !!cfg().CHECKINS_READY;
   const reqs = [sb.from("days").select("*").order("day_number", {
@@ -333,6 +345,19 @@ function dayOpenMins(day) {
 }
 function offDates() {
   return cfg().OFF_DATES || [];
+}
+const CONFIG_OFF = function () {
+  try {
+    const a = window.APP_CONFIG && window.APP_CONFIG.OFF_DATES || [];
+    return Array.isArray(a) ? a.slice() : [];
+  } catch (e) {
+    return [];
+  }
+}();
+function applyOffDates(dbList) {
+  const merged = Array.from(new Set([].concat(CONFIG_OFF, dbList || [])));
+  if (window.APP_CONFIG) window.APP_CONFIG.OFF_DATES = merged;
+  return merged;
 }
 function ymd(dt) {
   return dt.getUTCFullYear() + "-" + String(dt.getUTCMonth() + 1).padStart(2, "0") + "-" + String(dt.getUTCDate()).padStart(2, "0");
@@ -3708,10 +3733,118 @@ function ErrorsSection() {
     }
   }, r.url)))));
 }
+function OffDaysSection({
+  offList,
+  onAddOff,
+  onRemoveOff
+}) {
+  const [date, setDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [ok, setOk] = useState(false);
+  const add = async () => {
+    if (!date) return;
+    setBusy(true);
+    const r = await onAddOff(date);
+    setBusy(false);
+    if (r) {
+      setDate("");
+      setOk(true);
+      setTimeout(() => setOk(false), 2000);
+    }
+  };
+  const fmt = d => {
+    const p = String(d).split("-");
+    return p.length === 3 ? +p[2] + " " + MONTHS_RU[+p[1] - 1] + " " + p[0] : d;
+  };
+  const list = (offList || []).slice().sort();
+  return React.createElement("div", null, React.createElement("div", {
+    className: "eyebrow",
+    style: {
+      margin: "26px 0 10px"
+    }
+  }, "\u0412\u044B\u0445\u043E\u0434\u043D\u044B\u0435 \u0434\u043D\u0438"), React.createElement("div", {
+    className: "block-sub muted",
+    style: {
+      marginTop: -6,
+      marginBottom: 12
+    }
+  }, "\u0414\u0430\u0442\u0430, \u0432 \u043A\u043E\u0442\u043E\u0440\u0443\u044E \u043D\u043E\u0432\u044B\u0439 \u0443\u0440\u043E\u043A \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F. \u0420\u0430\u0441\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u0441\u0430\u043C\u043E \u0441\u0434\u0432\u0438\u0433\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u0434\u0435\u043D\u044C \u0432\u043F\u0435\u0440\u0451\u0434. \u0412\u0438\u0434\u0438\u0442\u0435 \u0442\u043E\u043B\u044C\u043A\u043E \u0432\u044B, \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u0438 \u044D\u0442\u043E\u0433\u043E \u043D\u0435 \u0432\u0438\u0434\u044F\u0442."), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+      alignItems: "center"
+    }
+  }, React.createElement("input", {
+    type: "date",
+    value: date,
+    onChange: e => setDate(e.target.value),
+    style: {
+      padding: "9px 11px",
+      borderRadius: 10,
+      border: "1px solid #cdd6e2",
+      fontSize: 15,
+      fontWeight: 600
+    }
+  }), React.createElement("button", {
+    className: "btn btn-primary btn-sm",
+    disabled: busy || !date,
+    onClick: add
+  }, busy ? "Сохраняю…" : "Добавить выходной"), ok && React.createElement("span", {
+    style: {
+      color: "#1f9d55",
+      fontWeight: 700,
+      fontSize: 13
+    }
+  }, "\u2713 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u043E")), React.createElement("div", {
+    style: {
+      marginTop: 12,
+      display: "flex",
+      flexWrap: "wrap",
+      gap: 8
+    }
+  }, list.length === 0 && React.createElement("span", {
+    className: "faint",
+    style: {
+      fontSize: 13
+    }
+  }, "\u0412\u044B\u0445\u043E\u0434\u043D\u044B\u0445 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"), list.map(d => React.createElement("span", {
+    key: d,
+    style: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      background: "#eef2f7",
+      border: "1px solid #e0e6ee",
+      borderRadius: 999,
+      padding: "7px 8px 7px 13px",
+      fontSize: 13.5,
+      fontWeight: 600,
+      color: "var(--steel)"
+    }
+  }, fmt(d), React.createElement("button", {
+    onClick: () => onRemoveOff(d),
+    title: "\u0423\u0431\u0440\u0430\u0442\u044C",
+    style: {
+      border: "none",
+      background: "#dbe2ec",
+      color: "var(--ink-soft)",
+      width: 22,
+      height: 22,
+      borderRadius: 999,
+      cursor: "pointer",
+      fontWeight: 800,
+      lineHeight: 1
+    }
+  }, "\xD7")))));
+}
 function Admin({
   days,
   setDays,
-  onReload
+  onReload,
+  offList,
+  onAddOff,
+  onRemoveOff
 }) {
   const [stMap, setStMap] = useState({});
   const daysRef = useRef(days);
@@ -4040,7 +4173,11 @@ function Admin({
     className: "eyebrow"
   }, "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435"), React.createElement("h1", null, "\u0410\u0434\u043C\u0438\u043D"), React.createElement("div", {
     className: "sub"
-  }, "\u0414\u043E\u0441\u0442\u0443\u043F\u044B \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u043E\u0432 \u0438 \u043A\u043E\u043D\u0442\u0435\u043D\u0442 \u0434\u043D\u0435\u0439."))), React.createElement(AccessSection, null), React.createElement("div", {
+  }, "\u0414\u043E\u0441\u0442\u0443\u043F\u044B \u0443\u0447\u0430\u0441\u0442\u043D\u0438\u043A\u043E\u0432 \u0438 \u043A\u043E\u043D\u0442\u0435\u043D\u0442 \u0434\u043D\u0435\u0439."))), React.createElement(AccessSection, null), React.createElement(OffDaysSection, {
+    offList: offList,
+    onAddOff: onAddOff,
+    onRemoveOff: onRemoveOff
+  }), React.createElement("div", {
     className: "eyebrow",
     style: {
       margin: "26px 0 14px"
@@ -4281,6 +4418,7 @@ function App() {
   const [days, setDays] = useState(null);
   const daysLive = useRef(null);
   daysLive.current = days;
+  const [offList, setOffList] = useState([]);
   const [loadErr, setLoadErr] = useState("");
   const [saveErr, setSaveErr] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
@@ -4320,6 +4458,10 @@ function App() {
       setDays(d);
       setLoadErr("");
       setLoadSlow(false);
+      loadOffDates().then(list => {
+        applyOffDates(list);
+        setOffList(list);
+      });
     } catch (e) {
       if (attempt < 2) {
         return reload(attempt + 1);
@@ -4371,7 +4513,10 @@ function App() {
     const t = setTimeout(() => setBootSlow(true), 6000);
     return () => clearTimeout(t);
   }, [session]);
-  const unlockedCount = useMemo(() => days ? unlockedCountNow(days) : 0, [days]);
+  const unlockedCount = useMemo(() => {
+    applyOffDates(offList);
+    return days ? unlockedCountNow(days) : 0;
+  }, [days, offList]);
   const currentIndex = useMemo(() => {
     if (!days || !days.length) return 0;
     return computeCurrentIndex(days, unlockedCount);
@@ -4536,6 +4681,44 @@ function App() {
     }
     if (isAdmin || dayOpenable(dayStatus(days[i], i, unlockedCount, currentIndex))) setOpenDay(i);
   };
+  const addOffDate = async date => {
+    if (!date) return false;
+    try {
+      const {
+        error
+      } = await sb.from("off_dates").upsert({
+        date: date
+      }, {
+        onConflict: "date"
+      });
+      if (error) throw error;
+    } catch (e) {
+      const raw = (e && e.message || "").toLowerCase();
+      setSaveErr(raw.includes("off_dates") || raw.includes("relation") || raw.includes("does not exist") ? "Один раз выполните SQL из инструкции (таблица off_dates), потом заработает" : "Не удалось сохранить выходной, проверьте интернет");
+      setTimeout(() => setSaveErr(""), 8000);
+      return false;
+    }
+    const nl = Array.from(new Set([].concat(offList, [date])));
+    applyOffDates(nl);
+    setOffList(nl);
+    return true;
+  };
+  const removeOffDate = async date => {
+    try {
+      const {
+        error
+      } = await sb.from("off_dates").delete().eq("date", date);
+      if (error) throw error;
+    } catch (e) {
+      setSaveErr("Не удалось убрать выходной, проверьте интернет");
+      setTimeout(() => setSaveErr(""), 8000);
+      return false;
+    }
+    const nl = offList.filter(d => d !== date);
+    applyOffDates(nl);
+    setOffList(nl);
+    return true;
+  };
   let content;
   if (openDay !== null) {
     const ni = openDay + 1;
@@ -4593,7 +4776,10 @@ function App() {
     content = React.createElement(Admin, {
       days: days,
       setDays: setDays,
-      onReload: reload
+      onReload: reload,
+      offList: offList,
+      onAddOff: addOffDate,
+      onRemoveOff: removeOffDate
     });
   } else {
     content = React.createElement(Dashboard, {
