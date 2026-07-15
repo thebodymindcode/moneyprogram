@@ -758,6 +758,13 @@ textarea.adm-input { resize: vertical; min-height: 64px; line-height: 1.45; }
 .qtask.just-checked .q-check .glow { animation: ring .6s ease-out; }
 .q-text { font-size: 14.5px; line-height: 1.4; font-weight: 600; padding-top: 1px; }
 .q-num { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 4px; }
+/* форматирование текста задания: подзаголовки-пункты, абзацы, переносы */
+.qt-body { line-height: 1.5; }
+.qt-head { font-weight: 800; margin-top: 13px; }
+.qt-head:first-child { margin-top: 0; }
+.qt-head + .qt-line { margin-top: 2px; }
+.qt-line + .qt-line { margin-top: 3px; }
+.qt-gap { height: 7px; }
 .q-edit-zone, .q-answer-view { margin-top: 12px; padding-left: 39px; }
 .q-input {
   width: 100%; font-family: inherit; font-size: 16px; color: var(--ink); line-height: 1.5;

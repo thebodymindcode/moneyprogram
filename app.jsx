@@ -1170,6 +1170,18 @@ function Player({ day }) {
 }
 
 /* ========================= Task with answer ========================= */
+// текст задания с простым форматированием: **жирный** и переносы строк, чтобы длинные задания читались списком
+function renderTaskText(text) {
+  return String(text || "").split("\n").map((line, i) => {
+    if (line.trim() === "") return <div key={i} className="qt-gap" />;
+    const isHead = /^\*\*[^*]+\*\*$/.test(line.trim());
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((seg, j) =>
+      /^\*\*[^*]+\*\*$/.test(seg) ? <b key={j}>{seg.slice(2, -2)}</b> : seg
+    );
+    return <div key={i} className={isHead ? "qt-head" : "qt-line"}>{parts}</div>;
+  });
+}
+
 function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }) {
   const filled = task.answer && task.answer.trim().length > 0;
   // автосохранение пока печатаешь: через ~0.9с после последнего нажатия молча сохраняем в базу
@@ -1180,7 +1192,7 @@ function TaskItem({ task, num, just, onAnswer, onAnswerBlur, onConfirm, onEdit }
     <div className={"qtask" + (task.done ? " done" : "") + (just ? " just-checked" : "")}>
       <div className="q-row">
         <div className="q-check"><span className="glow" /><Ico.check /></div>
-        <div className="q-text"><span className="q-num">Задание {num}</span>{task.text}</div>
+        <div className="q-text"><span className="q-num">Задание {num}</span><div className="qt-body">{renderTaskText(task.text)}</div></div>
       </div>
       {task.done ? (
         <div className="q-answer-view">

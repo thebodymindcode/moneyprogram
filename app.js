@@ -2150,6 +2150,22 @@ function Player({
     onChange: e => applySpeed(e.target.value)
   })));
 }
+function renderTaskText(text) {
+  return String(text || "").split("\n").map((line, i) => {
+    if (line.trim() === "") return React.createElement("div", {
+      key: i,
+      className: "qt-gap"
+    });
+    const isHead = /^\*\*[^*]+\*\*$/.test(line.trim());
+    const parts = line.split(/(\*\*[^*]+\*\*)/g).map((seg, j) => /^\*\*[^*]+\*\*$/.test(seg) ? React.createElement("b", {
+      key: j
+    }, seg.slice(2, -2)) : seg);
+    return React.createElement("div", {
+      key: i,
+      className: isHead ? "qt-head" : "qt-line"
+    }, parts);
+  });
+}
 function TaskItem({
   task,
   num,
@@ -2178,7 +2194,9 @@ function TaskItem({
     className: "q-text"
   }, React.createElement("span", {
     className: "q-num"
-  }, "\u0417\u0430\u0434\u0430\u043D\u0438\u0435 ", num), task.text)), task.done ? React.createElement("div", {
+  }, "\u0417\u0430\u0434\u0430\u043D\u0438\u0435 ", num), React.createElement("div", {
+    className: "qt-body"
+  }, renderTaskText(task.text)))), task.done ? React.createElement("div", {
     className: "q-answer-view"
   }, React.createElement("div", {
     className: "q-answer-text"
