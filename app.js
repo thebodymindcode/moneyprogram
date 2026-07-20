@@ -24,6 +24,8 @@ const AUDIO_MIME = {
   ogg: "audio/ogg"
 };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const STALL_MS = 12000;
+const PREFETCH_DELAY_MS = 20000;
 async function signedAudioUrl(path, tries = 3) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
@@ -1825,6 +1827,8 @@ function Player({
   const wantPlay = useRef(false);
   const dlAbort = useRef(null);
   const dlFor = useRef(null);
+  const prefetchTimer = useRef(null);
+  const prefetchOff = useRef(false);
   const hasMusic = !!(day.audioPath && day.audioMusicPath);
   const pathNow = () => trackRef.current === "music" && day.audioMusicPath ? day.audioMusicPath : day.audioPath;
   const applySpeed = v => {
@@ -1844,6 +1848,10 @@ function Player({
     }
   }, [speed, src]);
   const stopDownload = () => {
+    if (prefetchTimer.current) {
+      clearTimeout(prefetchTimer.current);
+      prefetchTimer.current = null;
+    }
     if (dlAbort.current) {
       try {
         dlAbort.current.abort();
@@ -1851,6 +1859,15 @@ function Player({
       dlAbort.current = null;
     }
     dlFor.current = null;
+  };
+  const schedulePrefetch = (path, url) => {
+    if (prefetchOff.current || !path || !url || _audioBlobCache.get(path)) return;
+    if (prefetchTimer.current) return;
+    prefetchTimer.current = setTimeout(() => {
+      prefetchTimer.current = null;
+      const a = audioRef.current;
+      if (a && !a.paused && a.readyState >= 3) prefetchFull(path, url);
+    }, PREFETCH_DELAY_MS);
   };
   const loadSrc = (resume, force) => {
     const my = ++reqId.current;
@@ -1872,8 +1889,31 @@ function Player({
       if (my === reqId.current) setSrc("");
     });
   };
+  useEffect(() => {
+    if (typeof src !== "string" || !src) return;
+    let stuckMs = 0;
+    const STEP = 1000;
+    const id = setInterval(() => {
+      const a = audioRef.current;
+      if (!a) return;
+      const stuck = a.readyState === 0 || wantPlay.current && a.readyState < 3;
+      stuckMs = stuck ? stuckMs + STEP : 0;
+      if (stuckMs < STALL_MS) return;
+      clearInterval(id);
+      if (recoverLeft.current > 0) {
+        recoverLeft.current -= 1;
+        prefetchOff.current = true;
+        loadSrc(a.currentTime || resumeAt.current || 0, true);
+      } else {
+        setBuffering(false);
+        setSrc("");
+      }
+    }, STEP);
+    return () => clearInterval(id);
+  }, [src]);
   const prefetchFull = async (path, url) => {
     if (!path || !url || dlFor.current === path || _audioBlobCache.get(path)) return;
+    if (prefetchOff.current) return;
     dlFor.current = path;
     try {
       const ctrl = new AbortController();
@@ -1932,6 +1972,7 @@ function Player({
     resumeAt.current = 0;
     shouldResume.current = false;
     wantPlay.current = false;
+    prefetchOff.current = false;
     stopDownload();
     trackRef.current = "voice";
     setTrack("voice");
@@ -1994,6 +2035,10 @@ function Player({
   };
   const onWaiting = () => {
     if (wantPlay.current) setBuffering(true);
+    if (dlFor.current || prefetchTimer.current) {
+      prefetchOff.current = true;
+      stopDownload();
+    }
   };
   const readBuf = () => {
     if (dlFor.current) return;
@@ -2061,7 +2106,7 @@ function Player({
     onPlaying: () => {
       setBuffering(false);
       setPlaying(true);
-      if (src && src.indexOf("blob:") !== 0) prefetchFull(pathNow(), src);
+      if (src && src.indexOf("blob:") !== 0) schedulePrefetch(pathNow(), src);
     },
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),

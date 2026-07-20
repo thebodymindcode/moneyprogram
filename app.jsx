@@ -18,6 +18,12 @@ const slugFile = (name) => String(name).toLowerCase().replace(/[^a-z0-9.\-]+/g, 
 const AUDIO_MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg" };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// сколько ждём данных, прежде чем считать плеер зависшим и пересобрать его на свежей ссылке
+const STALL_MS = 12000;
+// пауза перед фоновой докачкой урока: сначала даём стриму спокойно набрать буфер,
+// иначе докачка отбирает у него канал и посреди урока вылезает «загрузка…»
+const PREFETCH_DELAY_MS = 20000;
+
 // подписанная ссылка на приватный файл (работает только у залогиненного участника из списка).
 // С повторами: на свежей загрузке страницы токен Supabase может ещё обновляться,
 // и первая попытка подписи уходит со старым токеном, хранилище отвечает ошибкой.
@@ -936,6 +942,8 @@ function Player({ day }) {
   const wantPlay = useRef(false);                  // пользователь хочет играть: запустим, как только хватит данных
   const dlAbort = useRef(null);                    // отмена фоновой докачки при смене дня/дорожки
   const dlFor = useRef(null);                      // путь, который сейчас докачиваем (чтобы не дублировать)
+  const prefetchTimer = useRef(null);              // отложенный старт фоновой докачки
+  const prefetchOff = useRef(false);               // докачка запрещена: канал узкий, весь его отдаём стриму
   const hasMusic = !!(day.audioPath && day.audioMusicPath);   // переключатель показываем, только когда есть обе версии
   // путь активной дорожки. Если музыки нет, всегда основная (без музыки)
   const pathNow = () => (trackRef.current === "music" && day.audioMusicPath) ? day.audioMusicPath : day.audioPath;
@@ -956,8 +964,21 @@ function Player({ day }) {
   // взять ссылку (из кеша, мгновенно; force=свежая при сбое). resume = позиция для продолжения
   // отменить текущую фоновую докачку (при смене дня/дорожки)
   const stopDownload = () => {
+    if (prefetchTimer.current) { clearTimeout(prefetchTimer.current); prefetchTimer.current = null; }
     if (dlAbort.current) { try { dlAbort.current.abort(); } catch (e) {} dlAbort.current = null; }
     dlFor.current = null;
+  };
+
+  // фоновую докачку заводим не сразу, а когда стрим уже разыгрался: два скачивания одного файла
+  // разом делят канал, и плееру перестаёт хватать данных
+  const schedulePrefetch = (path, url) => {
+    if (prefetchOff.current || !path || !url || _audioBlobCache.get(path)) return;
+    if (prefetchTimer.current) return;
+    prefetchTimer.current = setTimeout(() => {
+      prefetchTimer.current = null;
+      const a = audioRef.current;
+      if (a && !a.paused && a.readyState >= 3) prefetchFull(path, url);
+    }, PREFETCH_DELAY_MS);
   };
 
   const loadSrc = (resume, force) => {
@@ -975,10 +996,39 @@ function Player({ day }) {
       .catch(() => { if (my === reqId.current) setSrc(""); });
   };
 
+  // СТОРОЖ ЗАВИСАНИЯ. Когда канал до хранилища залипает, браузер не выдаёт ошибку: он молча
+  // остаётся в состоянии загрузки. Событие error не приходит, значит восстановление по onAudioError
+  // не запускается, и «загрузка…» висит вечно, пока человек не перезагрузит страницу.
+  // Теперь считаем, сколько подряд плеер стоит без данных, и сами берём свежую ссылку.
+  useEffect(() => {
+    if (typeof src !== "string" || !src) return;   // ссылки ещё нет или уже показали ошибку
+    let stuckMs = 0;
+    const STEP = 1000;
+    const id = setInterval(() => {
+      const a = audioRef.current;
+      if (!a) return;
+      // застряли: метаданные вообще не пришли, либо человек ждёт игры, а данных не хватает
+      const stuck = a.readyState === 0 || (wantPlay.current && a.readyState < 3);
+      stuckMs = stuck ? stuckMs + STEP : 0;
+      if (stuckMs < STALL_MS) return;
+      clearInterval(id);
+      if (recoverLeft.current > 0) {
+        recoverLeft.current -= 1;
+        prefetchOff.current = true;                // канал явно узкий, фоновую докачку больше не затеваем
+        loadSrc(a.currentTime || resumeAt.current || 0, true);
+      } else {
+        setBuffering(false); setSrc("");           // честный экран с кнопкой «Повторить»
+      }
+    }, STEP);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
   // фоновая ПОЛНАЯ докачка дорожки: тянем весь файл с реальным прогрессом, потом играем из памяти.
   // Стрим уже играет, поэтому старт мгновенный, а к концу урок загружен целиком и не затыкается.
   const prefetchFull = async (path, url) => {
     if (!path || !url || dlFor.current === path || _audioBlobCache.get(path)) return;
+    if (prefetchOff.current) return;               // на этой дорожке докачку отключили, канал занят стримом
     dlFor.current = path;
     try {
       const ctrl = new AbortController(); dlAbort.current = ctrl;
@@ -1026,6 +1076,7 @@ function Player({ day }) {
   useEffect(() => {
     setPlaying(false); setT(0); setDur(day.duration || 0); setBuffering(false);
     recoverLeft.current = 2; resumeAt.current = 0; shouldResume.current = false; wantPlay.current = false;
+    prefetchOff.current = false;
     stopDownload();
     trackRef.current = "voice"; setTrack("voice");
     if (!day.audioPath) { reqId.current++; setSrc(null); return; }
@@ -1073,7 +1124,11 @@ function Player({ day }) {
     const a = audioRef.current;
     if (a && wantPlay.current && a.paused) a.play().catch(() => {});
   };
-  const onWaiting = () => { if (wantPlay.current) setBuffering(true); };   // буфер кончился по ходу
+  // буфер кончился по ходу: отдаём канал стриму целиком и больше не лезем с фоновой докачкой
+  const onWaiting = () => {
+    if (wantPlay.current) setBuffering(true);
+    if (dlFor.current || prefetchTimer.current) { prefetchOff.current = true; stopDownload(); }
+  };
   // сколько подгружено вперёд (для светлой полоски буфера на таймлайне)
   const readBuf = () => {
     if (dlFor.current) return;   // идёт фоновая полная докачка, прогресс полосы ведём по ней
@@ -1120,7 +1175,7 @@ function Player({ day }) {
         <audio ref={audioRef} src={src} preload="metadata"
           onLoadedMetadata={onLoaded} onTimeUpdate={onTime} onError={onAudioError}
           onCanPlay={onCanPlay} onCanPlayThrough={onCanPlay} onWaiting={onWaiting} onStalled={onWaiting} onProgress={readBuf}
-          onPlaying={() => { setBuffering(false); setPlaying(true); if (src && src.indexOf("blob:") !== 0) prefetchFull(pathNow(), src); }}
+          onPlaying={() => { setBuffering(false); setPlaying(true); if (src && src.indexOf("blob:") !== 0) schedulePrefetch(pathNow(), src); }}
           onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
           onEnded={() => { setPlaying(false); wantPlay.current = false; }} />
       )}
