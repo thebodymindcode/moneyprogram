@@ -27,5 +27,5 @@ window.APP_CONFIG = {
   // по тому же пути, что в базе (days.audio_url). Supabase на бесплатном тарифе даёт 5 ГБ трафика
   // в месяц и отдаёт файлы без кеша, поэтому день, оставшийся на нём, и трафик жжёт, и подвисает.
   AUDIO_CDN_BASE: "https://thebodymindcode.github.io/moneyprogram/audio",
-  AUDIO_CDN_DAYS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+  AUDIO_CDN_DAYS: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
 };
